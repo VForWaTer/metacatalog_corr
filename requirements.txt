@@ -1,3 +1,5 @@
 metacatalog
 sqlalchemy
 fire
+numpy
+scipy
