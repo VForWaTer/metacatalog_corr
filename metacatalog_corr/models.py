@@ -89,7 +89,9 @@ class CorrelationMatrix(Base):
             threshold=None,
             commit=False,
             start=None,
-            end=None 
+            end=None,
+            if_exists='omit'
+            **kwargs
         ):
         """
         Create a new matrix value for storage.
@@ -118,6 +120,15 @@ class CorrelationMatrix(Base):
         end : datetime.datetime
             End date to filter data. If None (default), no filter
             will be applied.
+        
+        Keyword Arguments
+        -----------------
+        left_data : numpy.ndarray
+            If given, the create function will not download the data
+            from metacatalog again
+        right_data : numpy.ndarray
+            If given, the create function will not download the data
+            from metacatalog again
         
         Returns
         -------
@@ -148,25 +159,44 @@ class CorrelationMatrix(Base):
             metric = session.query(CorrelationMetric).filter(CorrelationMetric.symbol == metric).one()
         if not isinstance(metric, CorrelationMetric):
             raise AttributeError('metric is not a valid CorrelationMetric')
-        
-        # get the data
-        left_df = entry.get_data(start=start, end=end)
-        right_df = other.get_data(start=start, end=end)
 
-        # extract the data - this with the next update of metacatalog
-        left = left_df[entry.datasource.column_names].values
-        right = right_df[entry.datasource.column_names].values
+        # handle omit
+        matrix = session.query(CorrelationMatrix)
+            .filter(CorrelationMatrix.left_id==entry.id)
+            .filter(CorrelationMatrix.right_id==other.id)
+            .filter(CorrelationMatrix.metric_id==metric.id)
+            .first()
+        
+        if if_exists == 'omit':
+            if matrix is not None and matrix.value is not None:
+                return matrix
+
+        # create a instance if needed
+        if matrix is None:
+            matrix = CorrelationMatrix() 
+
+        # get the left data
+        if 'left_data' in kwargs:
+            left = kwargs['left_data']
+        else:    
+            left_df = entry.get_data(start=start, end=end)
+            left = left_df[entry.datasource.column_names].values
+
+        # get the right data
+        if 'right_data' in kwargs:
+            right = kwargs['right_data']
+        else:
+            right_df = other.get_data(start=start, end=end)
+            right = right_df[entry.datasource.column_names].values
         
         # calculate
         corr = metric.calc(left, right)
 
         # build the matrix value
-        matrix = CorrelationMatrix(
-            metric=metric,
-            left_id=entry.id,
-            right_id=other.id,
-            value=corr
-        )
+        matrix.metric_id=metric.id,
+        matrix.left_id=entry.id,
+        matrix.right_id=other.id,
+        matrix.value=corr
 
         if commit:
             # if smaller than threshold, return anyway
@@ -196,6 +226,7 @@ def merge_declarative_base(other: sa.MetaData):
     # add these tables to the other metadata
     CorrelationMetric.__table__.to_metadata(other)
     CorrelationMatrix.__table__.to_metadata(other)
+
 
 def _connect_to_metacatalog():
     """

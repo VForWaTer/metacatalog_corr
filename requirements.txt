@@ -3,3 +3,4 @@ sqlalchemy
 fire
 numpy
 scipy
+tqdm
