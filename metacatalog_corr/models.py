@@ -74,6 +74,9 @@ class CorrelationMatrix(Base):
     id = sa.Column(sa.BigInteger, primary_key=True)
     metric_id = sa.Column(sa.Integer, sa.ForeignKey('correlation_metrics.id'), nullable=False)
     value = sa.Column(sa.Numeric, nullable=False)
+    identifier = sa.Column(sa.String(30), nullable=True)
+
+    # this timestamp can be used to invalidate correlations after some time
     calculated = sa.Column(sa.DateTime, default=dt.utcnow, onupdate=dt.utcnow)
 
     # relationships
@@ -90,7 +93,9 @@ class CorrelationMatrix(Base):
             commit=False,
             start=None,
             end=None,
-            if_exists='omit'
+            identifier=None,
+            if_exists='omit',
+            force_overlap=False,
             **kwargs
         ):
         """
@@ -120,6 +125,15 @@ class CorrelationMatrix(Base):
         end : datetime.datetime
             End date to filter data. If None (default), no filter
             will be applied.
+        if_exists : str
+            Can be 'omit' or 'replace' to either skip the creation
+            of a new cell or force re-calculation in case it already
+            exists.
+        force_overlap : bool
+            If True, the correlation metric will only be calculated
+            for data of overlapping indices. If there are None,
+            None is returned.
+            Defaults to False
         
         Keyword Arguments
         -----------------
@@ -160,13 +174,16 @@ class CorrelationMatrix(Base):
         if not isinstance(metric, CorrelationMetric):
             raise AttributeError('metric is not a valid CorrelationMetric')
 
-        # handle omit
-        matrix = session.query(CorrelationMatrix)
+        # load existing matrix if any
+        query = session.query(CorrelationMatrix)
             .filter(CorrelationMatrix.left_id==entry.id)
             .filter(CorrelationMatrix.right_id==other.id)
             .filter(CorrelationMatrix.metric_id==metric.id)
-            .first()
+        if identifier is not None:
+            query = query.filter(CorrelationMatrix.identifer == identifier)
+        matrix = query.first()
         
+        # handle omit
         if if_exists == 'omit':
             if matrix is not None and matrix.value is not None:
                 return matrix
@@ -174,11 +191,11 @@ class CorrelationMatrix(Base):
         # create a instance if needed
         if matrix is None:
             matrix = CorrelationMatrix() 
-
+        
         # get the left data
         if 'left_data' in kwargs:
             left = kwargs['left_data']
-        else:    
+        else:
             left_df = entry.get_data(start=start, end=end)
             left = left_df[entry.datasource.column_names].values
 
@@ -188,7 +205,20 @@ class CorrelationMatrix(Base):
         else:
             right_df = other.get_data(start=start, end=end)
             right = right_df[entry.datasource.column_names].values
-        
+
+        # handle overlap
+        # TODO - maybe we can use the TemporalExtent here to not download 
+        # non-overlapping data. 
+        if force_overlap:
+            max_start = max(right.index.min(), left.index.min())
+            min_end = min(left.index.max(), right.index.max())
+            left = left.loc[max_start:min_end, ].copy()
+            right = right.loc[max_start:min_end, ].copy()
+
+        # check if data is actually available:
+        if len(left) == 0 or len(right) == 0:
+            return None
+       
         # calculate
         corr = metric.calc(left, right)
 
@@ -197,6 +227,7 @@ class CorrelationMatrix(Base):
         matrix.left_id=entry.id,
         matrix.right_id=other.id,
         matrix.value=corr
+        matrix.identifier = identifier
 
         if commit:
             # if smaller than threshold, return anyway
@@ -226,6 +257,8 @@ def merge_declarative_base(other: sa.MetaData):
     # add these tables to the other metadata
     CorrelationMetric.__table__.to_metadata(other)
     CorrelationMatrix.__table__.to_metadata(other)
+
+    # TODO: here a relationship to Entry can be build if needed
 
 
 def _connect_to_metacatalog():

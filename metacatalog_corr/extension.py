@@ -7,7 +7,7 @@ from tqdm import tqdm
 from metacatalog_corr import models
 
 
-def find_correlated_data(self, limit: int = None, return_iterator = False):
+def find_correlated_data(self, limit: int = None, return_iterator = False, **kwargs):
     """
     """
     raise NotImplementedError
@@ -43,6 +43,7 @@ def index_correlation_matrix(self: Entry, others: list, metrics = ['pearson'], i
         Enable text output.
     
     Returns
+    -------
     correlation_matrix : List[CorrelationMatrix]
         List of CorrelationMatrix values calcualted. If existing 
         cells are omitted, they will **not** be in the list.
@@ -76,6 +77,7 @@ def index_correlation_matrix(self: Entry, others: list, metrics = ['pearson'], i
                 commit=commit,
                 start=kwargs.get('start'),
                 end=kwargs.end('end'),
+                identifier=kwargs.get('identifier'),
                 left_data=left,
                 if_exists=if_exists
             )
