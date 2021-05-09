@@ -176,9 +176,10 @@ class CorrelationMatrix(Base):
 
         # load existing matrix if any
         query = session.query(CorrelationMatrix)
-            .filter(CorrelationMatrix.left_id==entry.id)
-            .filter(CorrelationMatrix.right_id==other.id)
-            .filter(CorrelationMatrix.metric_id==metric.id)
+        .filter(CorrelationMatrix.left_id==entry.id)
+        .filter(CorrelationMatrix.right_id==other.id)
+        .filter(CorrelationMatrix.metric_id==metric.id)
+        
         if identifier is not None:
             query = query.filter(CorrelationMatrix.identifer == identifier)
         matrix = query.first()
