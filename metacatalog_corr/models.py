@@ -175,10 +175,9 @@ class CorrelationMatrix(Base):
             raise AttributeError('metric is not a valid CorrelationMetric')
 
         # load existing matrix if any
-        query = session.query(CorrelationMatrix)
-        .filter(CorrelationMatrix.left_id==entry.id)
-        .filter(CorrelationMatrix.right_id==other.id)
-        .filter(CorrelationMatrix.metric_id==metric.id)
+        query = session.query(CorrelationMatrix).filter(CorrelationMatrix.left_id==entry.id)
+        query = query.filter(CorrelationMatrix.right_id==other.id)
+        query = query.filter(CorrelationMatrix.metric_id==metric.id)
         
         if identifier is not None:
             query = query.filter(CorrelationMatrix.identifer == identifier)
