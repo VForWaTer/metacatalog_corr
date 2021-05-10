@@ -1,4 +1,6 @@
 from sqlalchemy.orm import object_session
+from sqlalchemy import func
+
 from metacatalog import __version__
 from metacatalog.ext import MetacatalogExtensionInterface
 from metacatalog.models import Entry
@@ -7,13 +9,67 @@ from tqdm import tqdm
 from metacatalog_corr import models
 
 
-def find_correlated_data(self, limit: int = None, metric: str = None, return_iterator = False, **kwargs):
+def find_correlated_data(self, limit: int = 50, metric: str = 'pearson', identifier: str = None, symmetric=True, return_iterator = False, **kwargs):
     """
     Find other Entry instances with correlating data.
     It is recommended to limit the result, as this function can potentially run
     for a long time returning huge amounts of data.
+    If additional keyword arguments are given, these will be passed to 
+    :func:`find_entry <metacatalog.api.find_entry>` to pre-filter the results.
+
+    Parameters
+    ----------
+    limit : int
+        Limit the results. The results will be ordered by correlation value.
+        It is highly recommended to place a limit to the results.
+        Defaults to 50
+    metric : str
+        Has to be a valid :class:`CorrelationMetric <metacatalog_corr.models.CorrelationMetric>`.
+        Only matrix values for this metrix will be returned. Defaults to pearson.
+    identifier : str
+        If different matrix versions were indexed using an identifier, this can be used
+        to load the correct matrix. This parameter filters on exact matches.
+    symmetric : bool
+        If True (default), the absolute correlation values will be used as
+        negative correlation are assumed to be as strong as positive correlations.
+        If set to False and limit is not None, the negative values will be ordered
+        **after** the positives.
+    return_iterator : bool
+        If True, the function will not execute the query but return the query object.
+
     """
-    raise NotImplementedError
+    # get the session
+    session = object_session(self)
+
+    # build the query - search for my entries
+    query = session.query(models.CorrelationMatrix).filter(models.CorrelationMatrix.left_id==self.id)
+
+    # filter for metric
+    if metric is not None:
+        query = query.join(models.CorrelationMetric).filter(models.CorrelationMetric.symbol==metric)
+
+    # apply filtering
+    if len(kwargs.keys()) > 0:
+        # get other Entry ids
+        others = [e.id for e in api.find_entry(session, **kwargs) if e.id != self.id]
+        if len(others) > 0:
+            query = query.filter(models.CorrelationMatrix.right_id.in_(others))
+
+    # apply order
+    if symmetric:
+        query = query.order_by(func.abs(models.CorrelationMatrix.value).desc())
+    else:
+        query = query.order_by(models.CorrelationMatrix.value.desc())
+    
+    # apply limit
+    if limit is not None:
+        query = query.limit(limit)
+
+    # handle output
+    if return_iterator:
+        return query
+    else:
+        return query.all()
 
 
 def index_correlation_matrix(self: Entry, others: list, metrics = ['pearson'], if_exists='omit', commit=True, verbose=False, **kwargs):
