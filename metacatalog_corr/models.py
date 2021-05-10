@@ -9,9 +9,6 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.mutable import MutableDict
 import numpy as np
 
-from metacatalog.models import Entry
-from metacatalog import api
-
 
 # create a new declarative base only for this extension
 Base = declarative_base()
@@ -86,8 +83,8 @@ class CorrelationMatrix(Base):
     def create(
             cls,
             session: sa.orm.Session,
-            entry: Union[int, str, Entry],
-            other: Union[int, str, Entry],
+            entry: Union[int, str, 'Entry'],
+            other: Union[int, str, 'Entry'],
             metric: Union[int, str, CorrelationMetric],
             threshold=None,
             commit=False,
@@ -150,6 +147,11 @@ class CorrelationMatrix(Base):
             An object representing one cell in the CorrelationMatrix
 
         """
+        # We need to import them here, otherwise there is a circular import if
+        # metacatalog tries to load this extension, that in turn tries to load metacatalog 
+        from metacatalog.models import Entry
+        from metacatalog import api
+
         # check if entry is an int (id), str (uuid) or Entry
         if isinstance(entry, int):
             entry = api.find_entry(session, id=entry)[0]
@@ -269,5 +271,9 @@ def _connect_to_metacatalog():
 
     """
     # add the two foreign keys to Entry
-    CorrelationMatrix.left_id  = sa.Column(sa.Integer, sa.ForeignKey('entries.id'), nullable=False)
-    CorrelationMatrix.right_id = sa.Column(sa.Integer, sa.ForeignKey('entries.id'), nullable=False)
+    # we need to check if the columns are already there, as the extension might already
+    # be loaded by metacatalog and the connection is already there
+    if not hasattr(CorrelationMatrix, 'left_id'):
+        CorrelationMatrix.left_id  = sa.Column(sa.Integer, sa.ForeignKey('entries.id'), nullable=False)
+    if not hasattr(CorrelationMatrix, 'right_id'):
+        CorrelationMatrix.right_id = sa.Column(sa.Integer, sa.ForeignKey('entries.id'), nullable=False)

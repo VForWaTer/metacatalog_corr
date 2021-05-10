@@ -1,6 +1,7 @@
 from setuptools import setup, find_packages
 from setuptools.command.develop import develop
 from setuptools.command.install import install
+from setuptools.command.egg_info import egg_info
 
 
 def requirements():
@@ -32,14 +33,23 @@ def install_and_migrate():
 
 class PostDevelopCommand(develop):
     def run(self):
-        install_and_migrate()
+        print('DEVELOP RUNNING')
         develop.run(self)
+        install_and_migrate()
 
 
 class PostInstallCommand(install):
     def run(self):
-        install_and_migrate()
+        print('INSTALL RUNNNIG')
         install.run(self)
+        install_and_migrate()
+
+
+class PostEggInfoCommand(egg_info):
+    def run(self):
+        print('EGG_INFO RUNNING')
+        egg_info.run(self)
+        install_and_migrate()
 
 
 setup(
@@ -55,7 +65,8 @@ setup(
     packages=find_packages(),
     cmdclass={
         'develop': PostDevelopCommand,
-        'install': PostInstallCommand
+        'install': PostInstallCommand,
+        'egg_info': PostEggInfoCommand
     },
     include_package_data=True
 )
