@@ -199,14 +199,14 @@ class CorrelationMatrix(Base):
             left = kwargs['left_data']
         else:
             left_df = entry.get_data(start=start, end=end)
-            left = left_df[entry.datasource.column_names].values
+            left = left_df[entry.datasource.data_names].values
 
         # get the right data
         if 'right_data' in kwargs:
             right = kwargs['right_data']
         else:
             right_df = other.get_data(start=start, end=end)
-            right = right_df[entry.datasource.column_names].values
+            right = right_df[entry.datasource.data_names].values
 
         # handle overlap
         # TODO - maybe we can use the TemporalExtent here to not download 

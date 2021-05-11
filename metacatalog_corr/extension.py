@@ -38,6 +38,8 @@ def find_correlated_data(self, limit: int = 50, metric: str = 'pearson', identif
         If True, the function will not execute the query but return the query object.
 
     """
+    from metacatalog import api
+
     # get the session
     session = object_session(self)
 
