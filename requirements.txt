@@ -1,5 +1,5 @@
 metacatalog
-sqlalchemy
+sqlalchemy>=1.4
 fire
 numpy
 scipy
