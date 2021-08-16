@@ -9,7 +9,7 @@ from tqdm import tqdm
 from metacatalog_corr import models
 
 
-def find_correlated_data(self, limit: int = 50, metric: str = 'pearson', identifier: str = None, symmetric=True, return_iterator = False, **kwargs):
+def find_correlated_data(self: Entry, limit: int = 50, metric: str = 'pearson', identifier: str = None, symmetric=True, return_iterator = False, **kwargs):
     """
     Find other Entry instances with correlating data.
     It is recommended to limit the result, as this function can potentially run
