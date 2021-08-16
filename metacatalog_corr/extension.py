@@ -74,7 +74,7 @@ def find_correlated_data(self, limit: int = 50, metric: str = 'pearson', identif
         return query.all()
 
 
-def index_correlation_matrix(self: Entry, others: list, metrics = ['pearson'], if_exists='omit', commit=True, verbose=False, **kwargs):
+def index_correlation_matrix(self: Entry, others: list, metrics = ['pearson'], if_exists='omit', harmonize=False, commit=True, verbose=False, **kwargs):
     """
     .. note::
         This function is part of the ``metacatalog_corr`` extension.
@@ -97,6 +97,10 @@ def index_correlation_matrix(self: Entry, others: list, metrics = ['pearson'], i
         Can be one of ``['omit', 'replace']``. Defaults to ``'omit'``.
         If a matrix cell is already filled, it can either be omitted
         or replaced.
+     harmonize : bool
+        If True, only datapoints from left and right with matching
+        indices are used for the calculation of metrics. 
+        This way, also length of left and right will match.
     commit : bool
         If True (default), the calculated values will be persisted into
         the database.
@@ -112,7 +116,8 @@ def index_correlation_matrix(self: Entry, others: list, metrics = ['pearson'], i
     """
     # pre-load the data
     left_df = self.get_data()
-    left = left_df[self.datasource.column_names].values
+    ## need pd.DataFrame in create() function to harmonize indices
+    #left = left_df[self.datasource.data_names].values
     
     # handle verbosity
     if verbose:
@@ -137,10 +142,11 @@ def index_correlation_matrix(self: Entry, others: list, metrics = ['pearson'], i
                 metric,
                 commit=commit,
                 start=kwargs.get('start'),
-                end=kwargs.end('end'),
+                end=kwargs.get('end'),
                 identifier=kwargs.get('identifier'),
-                left_data=left,
-                if_exists=if_exists
+                left_df=left_df,
+                if_exists=if_exists,
+                harmonize=harmonize
             )
             # append
             output.append(cell)
