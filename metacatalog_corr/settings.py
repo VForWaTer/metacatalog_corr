@@ -14,5 +14,13 @@ DEFAULT_METRICS = [
         'function_name': 'spearman_corr_coef',
         'import_path': 'metacatalog_corr.metrics',
         'function_args': {'nan_policy': 'omit'}
+    },
+    {
+        'symbol': 'dcor',
+        'name': 'Distance correlation',
+        'description': 'Calculation of the usual (biased) estimator for the distance correlation; Implementation from https://dcor.readthedocs.io/en/latest/functions/dcor.distance_correlation.html#dcor.distance_correlation',
+        'function_name': 'distance_corr',
+        'import_path': 'metacatalog_corr.metrics',
+        'function_args': {'exponent': 1}
     }
 ]
