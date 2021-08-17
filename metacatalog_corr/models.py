@@ -53,6 +53,7 @@ class CorrelationMetric(Base):
         """
         mod = importlib.import_module(self.import_path)
         func = getattr(mod, self.function_name)
+        return func
     
     def calc(self, left: np.ndarray, right: np.ndarray) -> float:
         """
@@ -72,6 +73,8 @@ class CorrelationMatrix(Base):
     metric_id = sa.Column(sa.Integer, sa.ForeignKey('correlation_metrics.id'), nullable=False)
     value = sa.Column(sa.Numeric, nullable=False)
     identifier = sa.Column(sa.String(30), nullable=True)
+    left_id = sa.Column(sa.Integer, nullable=False)
+    right_id = sa.Column(sa.Integer, nullable=False)
 
     # this timestamp can be used to invalidate correlations after some time
     calculated = sa.Column(sa.DateTime, default=dt.utcnow, onupdate=dt.utcnow)
@@ -92,6 +95,7 @@ class CorrelationMatrix(Base):
             end=None,
             identifier=None,
             if_exists='omit',
+            harmonize=False,
             force_overlap=False,
             **kwargs
         ):
@@ -126,18 +130,23 @@ class CorrelationMatrix(Base):
             Can be 'omit' or 'replace' to either skip the creation
             of a new cell or force re-calculation in case it already
             exists.
+        harmonize : bool
+            If True, only datapoints from left and right with matching
+            indices are used for the calculation of metrics. 
+            This way, also length of left and right will match.
+            Defaults to False.
         force_overlap : bool
             If True, the correlation metric will only be calculated
             for data of overlapping indices. If there are None,
             None is returned.
-            Defaults to False
+            Defaults to False.
         
         Keyword Arguments
         -----------------
-        left_data : numpy.ndarray
+        left_df : pandas.DataFrame
             If given, the create function will not download the data
             from metacatalog again
-        right_data : numpy.ndarray
+        right_df : pandas.DataFrame
             If given, the create function will not download the data
             from metacatalog again
         
@@ -195,35 +204,49 @@ class CorrelationMatrix(Base):
             matrix = CorrelationMatrix() 
         
         # get the left data
-        if 'left_data' in kwargs:
-            left = kwargs['left_data']
+        if 'left_df' in kwargs:
+            left_df = kwargs['left_df']
+            left = left_df.to_numpy()
         else:
             left_df = entry.get_data(start=start, end=end)
-            left = left_df[entry.datasource.data_names].values
+            left = left_df.to_numpy()
 
         # get the right data
         if 'right_data' in kwargs:
-            right = kwargs['right_data']
+            right_df = kwargs['right_df']
+            right = right_df.to_numpy()
         else:
             right_df = other.get_data(start=start, end=end)
-            right = right_df[entry.datasource.data_names].values
+            right = right_df.to_numpy()
+
+        # harmonize left and right data by matching indices
+        if harmonize:
+            harmonized_index = right_df[right_df.index.isin(left_df.index)].index
+            left = left_df.loc[harmonized_index].to_numpy()
+            right = right_df.loc[harmonized_index].to_numpy()
 
         # handle overlap
         # TODO - maybe we can use the TemporalExtent here to not download 
-        # non-overlapping data. 
+        # non-overlapping data.
         if force_overlap:
-            max_start = max(right.index.min(), left.index.min())
-            min_end = min(left.index.max(), right.index.max())
-            left = left.loc[max_start:min_end, ].copy()
-            right = right.loc[max_start:min_end, ].copy()
+            max_start = max(right_df.index.min(), left_df.index.min())
+            min_end = min(left_df.index.max(), right_df.index.max())
+            left = left_df.loc[max_start:min_end, ].copy()
+            right = right_df.loc[max_start:min_end, ].copy()  
+            left = left.to_numpy()  
+            right = right.to_numpy()      
 
         # check if data is actually available:
         if len(left) == 0 or len(right) == 0:
             return None
-       
+
+        # loaded data is a list of lists [[x], [y], [z]] -> unstack
+        left = np.hstack(left)
+        right = np.hstack(right)
+
         # calculate
         corr = metric.calc(left, right)
-
+        
         # build the matrix value
         matrix.metric_id=metric.id,
         matrix.left_id=entry.id,
