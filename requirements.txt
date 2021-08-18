@@ -4,3 +4,4 @@ fire
 numpy
 scipy
 tqdm
+dcor
