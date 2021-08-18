@@ -95,7 +95,7 @@ class CorrelationMatrix(Base):
             end=None,
             identifier=None,
             if_exists='omit',
-            harmonize=False,
+            harmonize=True,
             force_overlap=False,
             **kwargs
         ):
@@ -133,8 +133,8 @@ class CorrelationMatrix(Base):
         harmonize : bool
             If True, only datapoints from left and right with matching
             indices are used for the calculation of metrics. 
-            This way, also length of left and right will match.
-            Defaults to False.
+            This way, the length of left and right also match.
+            Defaults to True.
         force_overlap : bool
             If True, the correlation metric will only be calculated
             for data of overlapping indices. If there are None,

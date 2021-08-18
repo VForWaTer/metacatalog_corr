@@ -100,7 +100,8 @@ def index_correlation_matrix(self: Entry, others: list, metrics = ['pearson'], i
      harmonize : bool
         If True, only datapoints from left and right with matching
         indices are used for the calculation of metrics. 
-        This way, also length of left and right will match.
+        This way, the length of left and right also match.
+        Defaults to True.
     commit : bool
         If True (default), the calculated values will be persisted into
         the database.
