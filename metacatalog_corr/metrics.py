@@ -36,6 +36,10 @@ def mutual_information_corr(left: np.ndarray, right: np.ndarray, **kwargs) -> fl
     Argument 'normalize=True' in **kwargs normalizes result to correlation coefficient scale.
     """
     corr = ennemi.estimate_mi(left, right, **kwargs)[0][0]
+    
+    # MI becomes -Inf sometimes (if left == right?), which can´t be inserted into table correlation_matrix
+    if np.isinf(corr):
+        corr = np.nan
 
     return corr
 
@@ -46,5 +50,21 @@ def maximal_information_coef(left: np.ndarray, right: np.ndarray, **kwargs) -> f
     mine = minepy.MINE(alpha=0.6, c=15)
     mine.compute_score(left, right)
     corr = mine.mic()
+
+    return corr
+
+def kendall_tau_corr(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
+    """
+    Calculation of Kendall's tau for left and right array.
+    """
+    corr, _ = stats.kendalltau(left, right)
+
+    return corr
+
+def weighted_tau_corr(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
+    """
+    Calculation of a weighted version of Kendall's tau for left and right array.
+    """
+    corr, _ = stats.weightedtau(left, right)
 
     return corr

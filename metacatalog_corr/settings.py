@@ -38,5 +38,21 @@ DEFAULT_METRICS = [
         'function_name': 'maximal_information_coef',
         'import_path': 'metacatalog_corr.metrics',
         'function_args': {}
+    },
+    {
+        'symbol': 'kendall_tau',
+        'name': 'Kendall´s tau',
+        'description': 'Calulation of Kendall´s tau correlation measure; Implementation from https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.kendalltau.html#scipy.stats.kendalltau',
+        'function_name': 'kendall_tau_corr',
+        'import_path': 'metacatalog_corr.metrics',
+        'function_args': {}
+    },
+    {
+        'symbol': 'weighted_tau',
+        'name': 'Weighted Kendall´s tau',
+        'description': 'Calulation of weighted Kendall´s tau correlation measure; Implementation from https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.weightedtau.html#scipy.stats.weightedtau',
+        'function_name': 'weighted_tau_corr',
+        'import_path': 'metacatalog_corr.metrics',
+        'function_args': {}
     }
 ]
