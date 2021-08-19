@@ -97,7 +97,7 @@ def index_correlation_matrix(self: Entry, others: list, metrics = ['pearson'], i
         Can be one of ``['omit', 'replace']``. Defaults to ``'omit'``.
         If a matrix cell is already filled, it can either be omitted
         or replaced.
-     harmonize : bool
+    harmonize : bool
         If True, only datapoints from left and right with matching
         indices are used for the calculation of metrics. 
         This way, the length of left and right also match.

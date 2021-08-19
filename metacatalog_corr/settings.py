@@ -22,5 +22,13 @@ DEFAULT_METRICS = [
         'function_name': 'distance_corr',
         'import_path': 'metacatalog_corr.metrics',
         'function_args': {'exponent': 1}
+    },
+    {
+        'symbol': 'mutual_info',
+        'name': 'Mutual Information',
+        'description': 'Estimation of the mutual information; Implementation from https://polsys.github.io/ennemi/api-reference.html#:~:text=to%20discrete%20data.-,estimate_mi,-Estimate%20the%20mutual',
+        'function_name': 'mutual_information_corr',
+        'import_path': 'metacatalog_corr.metrics',
+        'function_args': {'normalize': True}
     }
 ]
