@@ -30,5 +30,13 @@ DEFAULT_METRICS = [
         'function_name': 'mutual_information_corr',
         'import_path': 'metacatalog_corr.metrics',
         'function_args': {'normalize': True}
+    },
+    {
+        'symbol': 'mic',
+        'name': 'Maximal information coefficient',
+        'description': 'Calulation of the maximal information coefficient; Implementation from https://minepy.readthedocs.io/en/latest/python.html',
+        'function_name': 'maximal_information_coef',
+        'import_path': 'metacatalog_corr.metrics',
+        'function_args': {}
     }
 ]

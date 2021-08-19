@@ -2,6 +2,7 @@ import numpy as np
 from scipy import stats
 import dcor
 import ennemi
+import minepy
 
 
 def pearson_corr_coef(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
@@ -29,11 +30,21 @@ def distance_corr(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
 
     return corr
 
-def mutual_information_corr(left: np.ndarray, rigth: np.ndarray, **kwargs) -> float:
+def mutual_information_corr(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
     """
     Mutual Information estimation between left and right array.
     Argument 'normalize=True' in **kwargs normalizes result to correlation coefficient scale.
     """
-    corr = ennemi.estimate_mi(left, rigth, **kwargs)[0][0]
+    corr = ennemi.estimate_mi(left, right, **kwargs)[0][0]
+
+    return corr
+
+def maximal_information_coef(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
+    """
+    Maximal information coefficient (MIC) for left and right array.
+    """
+    mine = minepy.MINE(alpha=0.6, c=15)
+    mine.compute_score(left, right)
+    corr = mine.mic()
 
     return corr
