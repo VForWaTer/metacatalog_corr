@@ -3,6 +3,7 @@ from scipy import stats
 import dcor
 import ennemi
 import minepy
+import hyppo.independence
 
 
 def pearson_corr_coef(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
@@ -77,3 +78,13 @@ def somers_d_corr(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
     corr = corr.statistic
 
     return corr
+
+#def heller_heller_gorfine(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
+#    """
+#    Calculate Heller-Heller-Gorfine test statistic for left and right array.
+#    """
+#    hhg = independence.HHG()
+#    corr, _ = hhg.test(left,right)
+#
+#    return corr
+
