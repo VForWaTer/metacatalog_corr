@@ -57,7 +57,7 @@ def kendall_tau_corr(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
     """
     Calculation of Kendall's tau for left and right array.
     """
-    corr, _ = stats.kendalltau(left, right)
+    corr, _ = stats.kendalltau(left, right, **kwargs)
 
     return corr
 
@@ -66,5 +66,14 @@ def weighted_tau_corr(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
     Calculation of a weighted version of Kendall's tau for left and right array.
     """
     corr, _ = stats.weightedtau(left, right)
+
+    return corr
+
+def somers_d_corr(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
+    """
+    Calculation of Somers´ D for left and right array.
+    """
+    corr = stats.somersd(left, right)
+    corr = corr.statistic
 
     return corr

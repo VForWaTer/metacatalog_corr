@@ -45,13 +45,21 @@ DEFAULT_METRICS = [
         'description': 'Calulation of Kendall´s tau correlation measure; Implementation from https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.kendalltau.html#scipy.stats.kendalltau',
         'function_name': 'kendall_tau_corr',
         'import_path': 'metacatalog_corr.metrics',
-        'function_args': {}
+        'function_args': {'nan_policy': 'omit'}
     },
     {
         'symbol': 'weighted_tau',
         'name': 'Weighted Kendall´s tau',
         'description': 'Calulation of weighted Kendall´s tau correlation measure; Implementation from https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.weightedtau.html#scipy.stats.weightedtau',
         'function_name': 'weighted_tau_corr',
+        'import_path': 'metacatalog_corr.metrics',
+        'function_args': {}
+    },
+    {
+        'symbol': 'somers_d',
+        'name': 'Somers´ D',
+        'description': 'Calculation of Somers´ D correlation measure; Implementation from https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.somersd.html#scipy.stats.somersd',
+        'function_name': 'somers_d_corr',
         'import_path': 'metacatalog_corr.metrics',
         'function_args': {}
     }
