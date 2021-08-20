@@ -62,5 +62,13 @@ DEFAULT_METRICS = [
         'function_name': 'somers_d_corr',
         'import_path': 'metacatalog_corr.metrics',
         'function_args': {}
+    },
+    {
+        'symbol': 'hoeffdings_d',
+        'name': 'Hoeffding´s D',
+        'description': 'Calculation of Hoeffding´s D correlation measure; Implementation from https://github.com/PaulVanDev/HoeffdingD',
+        'function_name': 'hoeffdings_d_coeff',
+        'import_path': 'metacatalog_corr.metrics',
+        'function_args': {}
     }
 ]

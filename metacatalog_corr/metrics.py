@@ -3,7 +3,8 @@ from scipy import stats
 import dcor
 import ennemi
 import minepy
-import hyppo.independence
+from . import hoeffdings_d
+#import hyppo.independence
 
 
 def pearson_corr_coef(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
@@ -76,6 +77,14 @@ def somers_d_corr(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
     """
     corr = stats.somersd(left, right)
     corr = corr.statistic
+
+    return corr
+
+def hoeffdings_d_coeff(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
+    """
+    Calculation of Hoeffding´s D for left and right array.
+    """
+    corr = hoeffdings_d.hoeffding(left, right)
 
     return corr
 
