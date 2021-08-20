@@ -4,6 +4,8 @@ import dcor
 import ennemi
 import minepy
 from . import hoeffdings_d
+from astropy.stats import biweight_midcorrelation
+
 #import hyppo.independence
 
 
@@ -85,6 +87,14 @@ def hoeffdings_d_coeff(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
     Calculation of Hoeffding´s D for left and right array.
     """
     corr = hoeffdings_d.hoeffding(left, right)
+
+    return corr
+
+def biweight_midcorr_coeff(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
+    """
+    Calculation of biweight mid correlation for left and right array.
+    """
+    corr = biweight_midcorrelation(left, right)
 
     return corr
 

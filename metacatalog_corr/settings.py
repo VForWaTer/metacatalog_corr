@@ -70,5 +70,13 @@ DEFAULT_METRICS = [
         'function_name': 'hoeffdings_d_coeff',
         'import_path': 'metacatalog_corr.metrics',
         'function_args': {}
+    },
+    {
+        'symbol': 'biweight_midcorr',
+        'name': 'Biweight midcorellation',
+        'description': 'Calculation of the biweight midcorrelation; Implementation from https://docs.astropy.org/en/stable/api/astropy.stats.biweight_midcorrelation.html',
+        'function_name': 'biweight_midcorr_coeff',
+        'import_path': 'metacatalog_corr.metrics',
+        'function_args': {}
     }
 ]
