@@ -4,7 +4,7 @@ import dcor
 import ennemi
 import minepy
 from . import hoeffdings_d
-from astropy.stats import biweight_midcorrelation
+import pingouin
 
 #import hyppo.independence
 
@@ -26,7 +26,7 @@ def spearman_corr_coef(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
 
     return corr
 
-def distance_corr(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
+def distance_corr_coef(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
     """
     Distance correlation for left and right array.
     """
@@ -34,7 +34,7 @@ def distance_corr(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
 
     return corr
 
-def mutual_information_corr(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
+def mutual_information_coef(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
     """
     Mutual Information estimation between left and right array.
     Argument 'normalize=True' in **kwargs normalizes result to correlation coefficient scale.
@@ -57,7 +57,7 @@ def maximal_information_coef(left: np.ndarray, right: np.ndarray, **kwargs) -> f
 
     return corr
 
-def kendall_tau_corr(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
+def kendall_tau_coef(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
     """
     Calculation of Kendall's tau for left and right array.
     """
@@ -65,7 +65,7 @@ def kendall_tau_corr(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
 
     return corr
 
-def weighted_tau_corr(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
+def weighted_tau_coef(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
     """
     Calculation of a weighted version of Kendall's tau for left and right array.
     """
@@ -73,7 +73,7 @@ def weighted_tau_corr(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
 
     return corr
 
-def somers_d_corr(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
+def somers_d_coef(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
     """
     Calculation of Somers´ D for left and right array.
     """
@@ -82,7 +82,7 @@ def somers_d_corr(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
 
     return corr
 
-def hoeffdings_d_coeff(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
+def hoeffdings_d_coef(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
     """
     Calculation of Hoeffding´s D for left and right array.
     """
@@ -90,11 +90,39 @@ def hoeffdings_d_coeff(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
 
     return corr
 
-def biweight_midcorr_coeff(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
+def biweight_midcorr_coef(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
     """
     Calculation of biweight mid correlation for left and right array.
     """
-    corr = biweight_midcorrelation(left, right)
+    corr = pingouin.corr(left, right, method='bicor')
+    corr = float(corr.r)
+
+    return corr
+
+def percentage_bend_coef(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
+    """
+    Calculation of Percentage bend correlation for left and right array.
+    """
+    corr = pingouin.corr(left, right, method='percbend')
+    corr = float(corr.r)
+
+    return corr
+
+def shepherds_pi_coef(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
+    """
+    Calculation of Shepherd´s pie correlation coefficient for left and right array.
+    """
+    corr = pingouin.corr(left, right, method='shepherd')
+    corr = float(corr.r)
+
+    return corr
+
+def skipped_corr_coef(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
+    """
+    Calculation of the Skipped correlation coefficient for left and right array.
+    """
+    corr = pingouin.corr(left, right, method='skipped')
+    corr = float(corr.r)
 
     return corr
 

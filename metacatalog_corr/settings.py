@@ -19,7 +19,7 @@ DEFAULT_METRICS = [
         'symbol': 'dcor',
         'name': 'Distance correlation',
         'description': 'Calculation of the usual (biased) estimator for the distance correlation; Implementation from https://dcor.readthedocs.io/en/latest/functions/dcor.distance_correlation.html#dcor.distance_correlation',
-        'function_name': 'distance_corr',
+        'function_name': 'distance_corr_coef',
         'import_path': 'metacatalog_corr.metrics',
         'function_args': {'exponent': 1}
     },
@@ -27,7 +27,7 @@ DEFAULT_METRICS = [
         'symbol': 'mutual_info',
         'name': 'Mutual Information',
         'description': 'Estimation of the mutual information; Implementation from https://polsys.github.io/ennemi/api-reference.html#:~:text=to%20discrete%20data.-,estimate_mi,-Estimate%20the%20mutual',
-        'function_name': 'mutual_information_corr',
+        'function_name': 'mutual_information_coef',
         'import_path': 'metacatalog_corr.metrics',
         'function_args': {'normalize': True}
     },
@@ -43,7 +43,7 @@ DEFAULT_METRICS = [
         'symbol': 'kendall_tau',
         'name': 'Kendall´s tau',
         'description': 'Calulation of Kendall´s tau correlation measure; Implementation from https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.kendalltau.html#scipy.stats.kendalltau',
-        'function_name': 'kendall_tau_corr',
+        'function_name': 'kendall_tau_coef',
         'import_path': 'metacatalog_corr.metrics',
         'function_args': {'nan_policy': 'omit'}
     },
@@ -51,7 +51,7 @@ DEFAULT_METRICS = [
         'symbol': 'weighted_tau',
         'name': 'Weighted Kendall´s tau',
         'description': 'Calulation of weighted Kendall´s tau correlation measure; Implementation from https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.weightedtau.html#scipy.stats.weightedtau',
-        'function_name': 'weighted_tau_corr',
+        'function_name': 'weighted_tau_coef',
         'import_path': 'metacatalog_corr.metrics',
         'function_args': {}
     },
@@ -59,7 +59,7 @@ DEFAULT_METRICS = [
         'symbol': 'somers_d',
         'name': 'Somers´ D',
         'description': 'Calculation of Somers´ D correlation measure; Implementation from https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.somersd.html#scipy.stats.somersd',
-        'function_name': 'somers_d_corr',
+        'function_name': 'somers_d_coef',
         'import_path': 'metacatalog_corr.metrics',
         'function_args': {}
     },
@@ -67,15 +67,39 @@ DEFAULT_METRICS = [
         'symbol': 'hoeffdings_d',
         'name': 'Hoeffding´s D',
         'description': 'Calculation of Hoeffding´s D correlation measure; Implementation from https://github.com/PaulVanDev/HoeffdingD',
-        'function_name': 'hoeffdings_d_coeff',
+        'function_name': 'hoeffdings_d_coef',
         'import_path': 'metacatalog_corr.metrics',
         'function_args': {}
     },
     {
-        'symbol': 'biweight_midcorr',
+        'symbol': 'biweight_mid',
         'name': 'Biweight midcorellation',
-        'description': 'Calculation of the biweight midcorrelation; Implementation from https://docs.astropy.org/en/stable/api/astropy.stats.biweight_midcorrelation.html',
-        'function_name': 'biweight_midcorr_coeff',
+        'description': 'Calculation of the biweight midcorrelation coefficient; Implementation from https://pingouin-stats.org/generated/pingouin.corr.html',
+        'function_name': 'biweight_midcorr_coef',
+        'import_path': 'metacatalog_corr.metrics',
+        'function_args': {}
+    },
+    {
+        'symbol': 'perc_bend',
+        'name': 'Percentage bend correlation',
+        'description': 'Calculation of the Percentage bend correlation coefficient; Implementation from https://pingouin-stats.org/generated/pingouin.corr.html',
+        'function_name': 'percentage_bend_coef',
+        'import_path': 'metacatalog_corr.metrics',
+        'function_args': {}
+    },
+    {
+        'symbol': 'shepherd',
+        'name': 'Shepherd´s pie correlation',
+        'description': 'Calculation of the Shepherd´s pie correlation coefficient; Implementation from https://pingouin-stats.org/generated/pingouin.corr.html',
+        'function_name': 'shepherds_pi_coef',
+        'import_path': 'metacatalog_corr.metrics',
+        'function_args': {}
+    },
+    {
+        'symbol': 'skipped',
+        'name': 'Skipped correlation',
+        'description': 'Calculation of the Skipped correlation coefficient; Implementation from https://pingouin-stats.org/generated/pingouin.corr.html',
+        'function_name': 'skipped_corr_coef',
         'import_path': 'metacatalog_corr.metrics',
         'function_args': {}
     }
