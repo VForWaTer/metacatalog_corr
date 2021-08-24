@@ -2,6 +2,7 @@ import importlib
 from datetime import datetime as dt
 from typing import Union
 import warnings
+from warnings import WarningMessage
 
 import sqlalchemy as sa
 from sqlalchemy.ext.declarative import declarative_base
@@ -9,6 +10,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.mutable import MutableDict
 import numpy as np
+from sqlalchemy.orm.session import object_session
 
 
 # create a new declarative base only for this extension
@@ -63,6 +65,32 @@ class CorrelationMetric(Base):
         return self.func(left, right, **self.function_args)
 
 
+class CorrelationWarning(Base):
+    """
+    Warning occured during the calculation of a correlation metric.
+    This warning has to be connected to one or many CorrelationMatrix 
+    records.
+
+    """
+    __tablename__ = 'correlation_warnings'
+
+    # columns
+    id = sa.Column(sa.Integer, primary_key=True)
+    category = sa.Column(sa.String(30), nullable=False)
+    message = sa.Column(sa.String, nullable=False)
+    backtrace = sa.Column(sa.String, nullable=True)
+
+    # relations
+    matrix_values = relationship('CorrelationMatrix', secondary='correlation_nm_warning', back_populates='warnings')
+
+
+class CorrelationWarningAssociation(Base):
+    __tablename__ = 'correlation_nm_warning'
+
+    matrix_id = sa.Column(sa.BigInteger, sa.ForeignKey('correlation_matrix.id'), primary_key=True)
+    warning_id = sa.Column(sa.Integer, sa.ForeignKey('correlation_warnings.id'), primary_key=True)
+
+
 class CorrelationMatrix(Base):
     """
     Correlation matrix
@@ -76,13 +104,13 @@ class CorrelationMatrix(Base):
     identifier = sa.Column(sa.String(30), nullable=True)
     left_id = sa.Column(sa.Integer, nullable=False)
     right_id = sa.Column(sa.Integer, nullable=False)
-    warnings = sa.Column(sa.String(1000), nullable=True)
 
     # this timestamp can be used to invalidate correlations after some time
     calculated = sa.Column(sa.DateTime, default=dt.utcnow, onupdate=dt.utcnow)
 
     # relationships
     metric = relationship("CorrelationMetric")
+    warnings = relationship("CorrelationWarning", secondary='correlation_nm_warning', back_populates='matrix_values')
 
     @classmethod
     def create(
@@ -250,12 +278,9 @@ class CorrelationMatrix(Base):
         with warnings.catch_warnings(record=True) as w:
             corr = metric.calc(left, right)
 
-            if w:
-                warning = []
-                for warn in w:
-                    warning.append(f'{warn.category.__name__}: {str(warn.message)}')
-            else:
-                warning = None
+        if w:
+            for warn in w:
+                matrix.add_warning(w=warn, commit=False)
             
         
         # build the matrix value
@@ -264,7 +289,6 @@ class CorrelationMatrix(Base):
         matrix.right_id=other.id,
         matrix.value=corr
         matrix.identifier=identifier
-        matrix.warnings=warning
 
         if commit:
             # if smaller than threshold, return anyway
@@ -282,6 +306,34 @@ class CorrelationMatrix(Base):
         # return
         return matrix
 
+    def add_warning(self, w: WarningMessage, commit=True):
+        """
+        Add a new warning to this instance
+        """
+        # create a database session
+        session = object_session(self)
+
+        # get category and message
+        cat = w.category.__name__
+        message = w.message
+
+        # find or create the warning instance
+        warn = session.query(CorrelationWarning).filter(CorrelationWarning.category==cat).filter(CorrelationWarning.message==message).first()
+        if warn is None:
+            warn = CorrelationWarning(category=cat, message=message)
+        
+        # append warning
+        self.warnings.append(warn)
+
+        # commit if requested
+        if commit:
+            try:
+                session.add(self)
+                session.commit()
+            except Exception as e:
+                session.rollback()
+                raise e
+
 
 def merge_declarative_base(other: sa.MetaData):
     """
@@ -294,6 +346,8 @@ def merge_declarative_base(other: sa.MetaData):
     # add these tables to the other metadata
     CorrelationMetric.__table__.to_metadata(other)
     CorrelationMatrix.__table__.to_metadata(other)
+    CorrelationWarning.__table__.to_metadata(other)
+    CorrelationWarningAssociation.__table__.to_metadata(other)
 
     # TODO: here a relationship to Entry can be build if needed
 
