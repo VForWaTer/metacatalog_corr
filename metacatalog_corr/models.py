@@ -1,6 +1,7 @@
 import importlib
 from datetime import datetime as dt
 from typing import Union
+import warnings
 
 import sqlalchemy as sa
 from sqlalchemy.ext.declarative import declarative_base
@@ -75,6 +76,7 @@ class CorrelationMatrix(Base):
     identifier = sa.Column(sa.String(30), nullable=True)
     left_id = sa.Column(sa.Integer, nullable=False)
     right_id = sa.Column(sa.Integer, nullable=False)
+    warnings = sa.Column(sa.String(1000), nullable=True)
 
     # this timestamp can be used to invalidate correlations after some time
     calculated = sa.Column(sa.DateTime, default=dt.utcnow, onupdate=dt.utcnow)
@@ -199,7 +201,7 @@ class CorrelationMatrix(Base):
             if matrix is not None and matrix.value is not None:
                 return matrix
 
-        # create a instance if needed
+        # create an instance if needed
         if matrix is None:
             matrix = CorrelationMatrix() 
         
@@ -240,19 +242,29 @@ class CorrelationMatrix(Base):
         if len(left) == 0 or len(right) == 0:
             return None
 
-        # loaded data is a list of lists [[x], [y], [z]] -> unstack
+        # loaded data is a list of lists [[x], [y], [z]] -> stack
         left = np.hstack(left)
         right = np.hstack(right)
 
-        # calculate
-        corr = metric.calc(left, right)
+        # calculate, if warnings occur, store them in the matrix
+        with warnings.catch_warnings(record=True) as w:
+            corr = metric.calc(left, right)
+
+            if w:
+                warning = []
+                for warn in w:
+                    warning.append(f'{warn.category.__name__}: {str(warn.message)}')
+            else:
+                warning = None
+            
         
         # build the matrix value
         matrix.metric_id=metric.id,
         matrix.left_id=entry.id,
         matrix.right_id=other.id,
         matrix.value=corr
-        matrix.identifier = identifier
+        matrix.identifier=identifier
+        matrix.warnings=warning
 
         if commit:
             # if smaller than threshold, return anyway
