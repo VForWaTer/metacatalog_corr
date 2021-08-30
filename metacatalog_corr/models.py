@@ -280,7 +280,7 @@ class CorrelationMatrix(Base):
 
         if w:
             for warn in w:
-                matrix.add_warning(w=warn, commit=False)
+                matrix.add_warning(w=warn, session=session, commit=False)
             
         
         # build the matrix value
@@ -306,16 +306,16 @@ class CorrelationMatrix(Base):
         # return
         return matrix
 
-    def add_warning(self, w: WarningMessage, commit=True):
+    def add_warning(self, session, w: WarningMessage, commit=True):
         """
         Add a new warning to this instance
         """
         # create a database session
-        session = object_session(self)
+        #session = object_session(self)
 
         # get category and message
-        cat = w.category.__name__
-        message = w.message
+        cat = str(w.category.__name__)
+        message = str(w.message)
 
         # find or create the warning instance
         warn = session.query(CorrelationWarning).filter(CorrelationWarning.category==cat).filter(CorrelationWarning.message==message).first()
