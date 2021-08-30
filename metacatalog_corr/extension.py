@@ -134,6 +134,9 @@ def index_correlation_matrix(self: Entry, others: list, metrics = ['pearson'], i
 
     # go 
     for other in others:
+        # load right data here instead of in every for loop (performance)
+        right_df = other.get_data(start=kwargs.get('start'), end=kwargs.get('end'))
+
         for metric in metrics_objects:
             # calculate
             cell = models.CorrelationMatrix.create(
@@ -146,6 +149,7 @@ def index_correlation_matrix(self: Entry, others: list, metrics = ['pearson'], i
                 end=kwargs.get('end'),
                 identifier=kwargs.get('identifier'),
                 left_df=left_df,
+                right_df=right_df,
                 if_exists=if_exists,
                 harmonize=harmonize
             )
