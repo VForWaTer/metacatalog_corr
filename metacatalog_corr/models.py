@@ -1,6 +1,7 @@
 import importlib
 from datetime import datetime as dt
 from typing import Union
+from unicodedata import category
 import warnings
 from warnings import WarningMessage
 
@@ -279,14 +280,18 @@ class CorrelationMatrix(Base):
             corr = metric.calc(left, right)
 
         if w:
-            for warn in w:
-                matrix.add_warning(w=warn, session=session, commit=False)
+            # use a list of unique warnings (set) (when messages occur twice in one calculation, they are also added twice in table correlation_warnings -> yields an integrity error later)
+            warn_list = []
+            for warn in w: warn_list.append((str(warn.category.__name__), str(warn.message)))
+                
+            for warn in set(warn_list):
+                matrix.add_warning(category=warn[0], message=warn[1], session=session, commit=False)
             
         
         # build the matrix value
-        matrix.metric_id=metric.id,
-        matrix.left_id=entry.id,
-        matrix.right_id=other.id,
+        matrix.metric_id=metric.id
+        matrix.left_id=entry.id
+        matrix.right_id=other.id
         matrix.value=corr
         matrix.identifier=identifier
 
@@ -306,21 +311,15 @@ class CorrelationMatrix(Base):
         # return
         return matrix
 
-    def add_warning(self, session, w: WarningMessage, commit=True):
+    def add_warning(self, session, category, message, commit=False):
         """
         Add a new warning to this instance
         """
-        # create a database session
-        #session = object_session(self)
-
-        # get category and message
-        cat = str(w.category.__name__)
-        message = str(w.message)
-
         # find or create the warning instance
-        warn = session.query(CorrelationWarning).filter(CorrelationWarning.category==cat).filter(CorrelationWarning.message==message).first()
+        with session.no_autoflush:
+            warn = session.query(CorrelationWarning).filter(CorrelationWarning.category==category, CorrelationWarning.message==message).first()
         if warn is None:
-            warn = CorrelationWarning(category=cat, message=message)
+            warn = CorrelationWarning(category=category, message=message)
         
         # append warning
         self.warnings.append(warn)
