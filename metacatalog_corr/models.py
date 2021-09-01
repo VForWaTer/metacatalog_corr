@@ -275,9 +275,13 @@ class CorrelationMatrix(Base):
         left = np.hstack(left)
         right = np.hstack(right)
 
-        # calculate, if warnings occur, store them in the matrix
+        # calculate, if warnings / errors occur, store them in table correlation warnings
         with warnings.catch_warnings(record=True) as w:
-            corr = metric.calc(left, right)
+            try:
+                corr = metric.calc(left, right)
+            except Exception as e:
+                matrix.add_warning(category=e.__class__.__name__, message=str(e), session=session, commit=False)
+                corr = np.nan
 
         if w:
             # use a list of unique warnings (set) (when messages occur twice in one calculation, they are also added twice in table correlation_warnings -> yields an integrity error later)
