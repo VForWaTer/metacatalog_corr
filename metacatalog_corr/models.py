@@ -222,7 +222,7 @@ class CorrelationMatrix(Base):
         query = query.filter(CorrelationMatrix.metric_id==metric.id)
         
         if identifier is not None:
-            query = query.filter(CorrelationMatrix.identifer == identifier)
+            query = query.filter(CorrelationMatrix.identifier == identifier)
         matrix = query.first()
         
         # handle omit
