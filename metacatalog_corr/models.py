@@ -256,6 +256,10 @@ class CorrelationMatrix(Base):
             left = left_df.loc[harmonized_index].to_numpy()
             right = right_df.loc[harmonized_index].to_numpy()
 
+            if len(harmonized_index) == 0:
+                warnings.warn('Indices of left and right data have no match, harmonization not possible.')
+
+
         # handle overlap
         # TODO - maybe we can use the TemporalExtent here to not download 
         # non-overlapping data.
