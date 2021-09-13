@@ -108,6 +108,13 @@ def index_correlation_matrix(self: Entry, others: list, metrics = ['pearson'], i
     verbose : bool
         Enable text output.
     
+    Keyword Arguments
+        -----------------
+    identifier : str
+        Always filled with the column names of left and right data: [left_col, right_col].
+        Add custom description to identify the cell. 
+        e.g. 'summer only'
+    
     Returns
     -------
     correlation_matrix : List[CorrelationMatrix]
@@ -115,10 +122,8 @@ def index_correlation_matrix(self: Entry, others: list, metrics = ['pearson'], i
         cells are omitted, they will **not** be in the list.
 
     """
-    # pre-load the data
+    # pre-load left data
     left_df = self.get_data()
-    ## need pd.DataFrame in create() function to harmonize indices
-    #left = left_df[self.datasource.data_names].values
     
     # handle verbosity
     if verbose:
@@ -133,28 +138,35 @@ def index_correlation_matrix(self: Entry, others: list, metrics = ['pearson'], i
     output = []
 
     # go 
-    for other in others:
-        # load right data here instead of in every for loop (performance)
-        right_df = other.get_data(start=kwargs.get('start'), end=kwargs.get('end'))
+    for left_col in left_df.columns:
+        for other in others:
+            # load right data here instead of in every for loop (performance)
+            right_df = other.get_data(start=kwargs.get('start'), end=kwargs.get('end'))
 
-        for metric in metrics_objects:
-            # calculate
-            cell = models.CorrelationMatrix.create(
-                session,
-                self,
-                other,
-                metric,
-                commit=commit,
-                start=kwargs.get('start'),
-                end=kwargs.get('end'),
-                identifier=kwargs.get('identifier'),
-                left_df=left_df,
-                right_df=right_df,
-                if_exists=if_exists,
-                harmonize=harmonize
-            )
-            # append
-            output.append(cell)
+            # loop over columns in right_df and left_df
+            for right_col in right_df.columns:
+                     
+                # always put column names of left and right data in identifier, add identifier from **kwargs if exists
+                identifier = '[%s, %s], %s' % (left_col, right_col, kwargs.get('identifier'))
+
+                for metric in metrics_objects:
+                    # calculate
+                    cell = models.CorrelationMatrix.create(
+                        session,
+                        self,
+                        other,
+                        metric,
+                        left=left_df[left_col],
+                        right=right_df[right_col],
+                        commit=commit,
+                        start=kwargs.get('start'),
+                        end=kwargs.get('end'),
+                        identifier=identifier,
+                        if_exists=if_exists,
+                        harmonize=harmonize
+                    )
+                    # append
+                    output.append(cell)
 
     return output
 

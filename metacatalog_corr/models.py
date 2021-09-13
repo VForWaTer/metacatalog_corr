@@ -102,7 +102,7 @@ class CorrelationMatrix(Base):
     id = sa.Column(sa.BigInteger, primary_key=True)
     metric_id = sa.Column(sa.Integer, sa.ForeignKey('correlation_metrics.id'), nullable=False)
     value = sa.Column(sa.Numeric, nullable=False)
-    identifier = sa.Column(sa.String(30), nullable=True)
+    identifier = sa.Column(sa.String(200), nullable=True)
     left_id = sa.Column(sa.Integer, nullable=False)
     right_id = sa.Column(sa.Integer, nullable=False)
 
@@ -120,6 +120,8 @@ class CorrelationMatrix(Base):
             entry: Union[int, str, 'Entry'],
             other: Union[int, str, 'Entry'],
             metric: Union[int, str, CorrelationMetric],
+            left,
+            right,
             threshold=None,
             commit=False,
             start=None,
@@ -144,6 +146,10 @@ class CorrelationMatrix(Base):
         metric : CorrelationMetric
             The id (int), symbol (str) or CorrelationMetric itself
             to be used.
+        left : pandas.Series
+            Left data of entry.
+        right : pandas.Series
+            Right data of other.
         threshold : float
             If set, any correlate absolute value lower than threshold
             will not be stored to the database. Has no effect if
@@ -171,15 +177,6 @@ class CorrelationMatrix(Base):
             for data of overlapping indices. If there are None,
             None is returned.
             Defaults to False.
-        
-        Keyword Arguments
-        -----------------
-        left_df : pandas.DataFrame
-            If given, the create function will not download the data
-            from metacatalog again
-        right_df : pandas.DataFrame
-            If given, the create function will not download the data
-            from metacatalog again
         
         Returns
         -------
@@ -223,6 +220,7 @@ class CorrelationMatrix(Base):
         
         if identifier is not None:
             query = query.filter(CorrelationMatrix.identifier == identifier)
+        
         matrix = query.first()
         
         # handle omit
@@ -233,69 +231,65 @@ class CorrelationMatrix(Base):
         # create an instance if needed
         if matrix is None:
             matrix = CorrelationMatrix() 
-        
-        # get the left data
-        if 'left_df' in kwargs:
-            left_df = kwargs['left_df']
-            left = left_df.to_numpy()
-        else:
-            left_df = entry.get_data(start=start, end=end)
-            left = left_df.to_numpy()
 
-        # get the right data
-        if 'right_data' in kwargs:
-            right_df = kwargs['right_df']
-            right = right_df.to_numpy()
-        else:
-            right_df = other.get_data(start=start, end=end)
-            right = right_df.to_numpy()
+        # only proceed with the calculation while data is still available during data preprocessing:
+        while (len(left) != 0 and len(right) != 0):
+            # handle overlap
+            # TODO - maybe we can use the TemporalExtent here to not download 
+            # non-overlapping data.
+            if force_overlap:
+                max_start = max(right.index.min(), left.index.min())
+                min_end = min(left.index.max(), right.index.max())
+                left = left.loc[max_start:min_end, ].copy()
+                right = right.loc[max_start:min_end, ].copy()  
+                left = left.to_numpy()  
+                right = right.to_numpy()   
 
-        # harmonize left and right data by matching indices
-        if harmonize:
-            harmonized_index = right_df[right_df.index.isin(left_df.index)].index
-            left = left_df.loc[harmonized_index].to_numpy()
-            right = right_df.loc[harmonized_index].to_numpy()
+            # harmonize left and right data by matching indices
+            if harmonize:
+                harmonized_index = right[right.index.isin(left.index)].index
+                left = left.loc[harmonized_index]
+                right = right.loc[harmonized_index]
+                if len(harmonized_index) == 0:
+                    matrix.add_warning(category='HarmonizationWarning', 
+                                       message='Indices of left and right data have no matches, harmonization not possible.',
+                                       session=session, commit=False)
 
-            if len(harmonized_index) == 0:
-                warnings.warn('Indices of left and right data have no match, harmonization not possible.')
+            # pandas.Series to np.ndarray
+            left = left.to_numpy()
+            right = right.to_numpy()
 
+            # remove NaN values from both left and right (if any are included)
+            if np.isnan(left).any() or np.isnan(right).any():
+                nan_indices = np.logical_not(np.logical_or(np.isnan(left), np.isnan(right)))
+                left = left[nan_indices]
+                right = right[nan_indices]
 
-        # handle overlap
-        # TODO - maybe we can use the TemporalExtent here to not download 
-        # non-overlapping data.
-        if force_overlap:
-            max_start = max(right_df.index.min(), left_df.index.min())
-            min_end = min(left_df.index.max(), right_df.index.max())
-            left = left_df.loc[max_start:min_end, ].copy()
-            right = right_df.loc[max_start:min_end, ].copy()  
-            left = left.to_numpy()  
-            right = right.to_numpy()      
+            # calculate, if warnings / errors occur, store them in table correlation warnings
+            with warnings.catch_warnings(record=True) as w:
+                try:
+                    corr = metric.calc(left, right)
+                except Exception as e:
+                    matrix.add_warning(category=e.__class__.__name__, message=str(e), session=session, commit=False)
+                    corr = np.nan
 
-        # check if data is actually available:
-        if len(left) == 0 or len(right) == 0:
-            return None
+            if w:
+                # use a list of unique warnings (set) (when messages occur twice in one calculation, they are also added twice in table correlation_warnings -> yields an integrity error later)
+                warn_list = []
+                for warn in w: warn_list.append((str(warn.category.__name__), str(warn.message)))
 
-        # loaded data is a list of lists [[x], [y], [z]] -> stack
-        left = np.hstack(left)
-        right = np.hstack(right)
+                for warn in set(warn_list):
+                    matrix.add_warning(category=warn[0], message=warn[1], session=session, commit=False)
 
-        # calculate, if warnings / errors occur, store them in table correlation warnings
-        with warnings.catch_warnings(record=True) as w:
-            try:
-                corr = metric.calc(left, right)
-            except Exception as e:
-                matrix.add_warning(category=e.__class__.__name__, message=str(e), session=session, commit=False)
-                corr = np.nan
+            # manually break while loop
+            break
 
-        if w:
-            # use a list of unique warnings (set) (when messages occur twice in one calculation, they are also added twice in table correlation_warnings -> yields an integrity error later)
-            warn_list = []
-            for warn in w: warn_list.append((str(warn.category.__name__), str(warn.message)))
-                
-            for warn in set(warn_list):
-                matrix.add_warning(category=warn[0], message=warn[1], session=session, commit=False)
-            
-        
+        if (len(left) == 0 or len(right) == 0):
+            matrix.add_warning(category='NoDataWarning', 
+                               message='No data available for left and/or right entry due to datasource, harmonization or nan remove.',
+                               session=session, commit=False)
+            corr = np.nan
+
         # build the matrix value
         matrix.metric_id=metric.id
         matrix.left_id=entry.id
