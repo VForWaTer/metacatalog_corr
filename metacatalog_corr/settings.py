@@ -104,3 +104,13 @@ DEFAULT_METRICS = [
         'function_args': {}
     }
 ]
+
+DEFAULT_WARNINGS = [
+    {
+    'category': 'NoDataWarning',
+    'message': 'No data available for left and/or right entry due to datasource, harmonization or nan remove.'
+    },
+    {'category': 'HarmonizationWarning',
+    'message': 'Indices of left and right data have no matches, harmonization not possible.'
+    }
+]

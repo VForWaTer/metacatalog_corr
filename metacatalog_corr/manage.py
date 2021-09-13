@@ -1,9 +1,10 @@
+from unicodedata import category
 import warnings
 from sqlalchemy.exc import SAWarning
 from metacatalog import api
 
 from metacatalog_corr import models
-from metacatalog_corr.settings import DEFAULT_METRICS
+from metacatalog_corr.settings import DEFAULT_METRICS, DEFAULT_WARNINGS
 
 
 def _connect(connection='default'):
@@ -51,14 +52,15 @@ def migrate(connection='default', verbose=False):
     # connect
     session = api.connect_database(connection)
 
-    for default in DEFAULT_METRICS:
-        symbol = default['symbol']
+    # default metrics
+    for default_m in DEFAULT_METRICS:
+        symbol = default_m['symbol']
         metric = session.query(models.CorrelationMetric).filter(models.CorrelationMetric.symbol==symbol).first()
         if metric is not None:
-            for key, val in default.items():
+            for key, val in default_m.items():
                 setattr(metric, key, val)
         else:
-            metric = models.CorrelationMetric(**default)
+            metric = models.CorrelationMetric(**default_m)
         
         try:
             session.add(metric)
@@ -68,6 +70,26 @@ def migrate(connection='default', verbose=False):
         except Exception as e:
             session.rollback()
             print(f'[ERROR] on {symbol}.\n{str(e)}')
+    
+    # default warnings
+    for default_w in DEFAULT_WARNINGS:
+        category = default_w['category']
+        warning = session.query(models.CorrelationWarning).filter(models.CorrelationWarning.category==category).first()
+        if warning is not None:
+            for key, val in default_w.items():
+                setattr(warning, key, val)
+        else:
+            warning = models.CorrelationWarning(**default_w)
+        
+        try:
+            session.add(warning)
+            session.commit()
+            if verbose:
+                print(f'Updated {category}')
+        except Exception as e:
+            session.rollback()
+            print(f'[ERROR] on {category}.\n{str(e)}')
+        
     
     # done
     if verbose:
