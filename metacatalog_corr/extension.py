@@ -1,15 +1,18 @@
+from numpy import isin
 from sqlalchemy.orm import object_session
 from sqlalchemy import func
+from typing import Union
 
 from metacatalog import __version__
 from metacatalog.ext import MetacatalogExtensionInterface
 from metacatalog.models import Entry
+from metacatalog.util.results import ImmutableResultSet
 from tqdm import tqdm
+from pandas import DataFrame
 
 from metacatalog_corr import models
 
-
-def find_correlated_data(self: Entry, limit: int = 50, metric: str = 'pearson', identifier: str = None, symmetric=True, return_iterator = False, **kwargs):
+def find_correlated_data(self: Union[Entry, ImmutableResultSet], limit: int = 50, metric: str = 'pearson', identifier: str = None, symmetric=True, return_iterator = False, **kwargs):
     """
     Find other Entry instances with correlating data.
     It is recommended to limit the result, as this function can potentially run
@@ -74,7 +77,7 @@ def find_correlated_data(self: Entry, limit: int = 50, metric: str = 'pearson', 
         return query.all()
 
 
-def index_correlation_matrix(self: Entry, others: list, metrics = ['pearson'], if_exists='omit', harmonize=False, commit=True, verbose=False, **kwargs):
+def index_correlation_matrix(self: Union[Entry, ImmutableResultSet], others: list, metrics = ['pearson'], if_exists='omit', harmonize=False, commit=True, verbose=False, **kwargs):
     """
     .. note::
         This function is part of the ``metacatalog_corr`` extension.
@@ -88,7 +91,10 @@ def index_correlation_matrix(self: Entry, others: list, metrics = ['pearson'], i
     other : list
         List of other entries. This can be a list of 
         :class:`Entries <metacatalog.models.Entry>`, int (Entry.id) or
-        str (Entry.uuid)
+        str (Entry.uuid).
+        It is also possible to provide a list of 
+        :class:`ImmutableResultSet <metacatalog.util.results.ImmutableResultSet>`.
+        This is recommended only for Split datasets.
     metrics : list
         List of metrics to calculate. Each string in the list has to be
         available as CorrelationMetric.symbol in the database.
@@ -122,15 +128,25 @@ def index_correlation_matrix(self: Entry, others: list, metrics = ['pearson'], i
         cells are omitted, they will **not** be in the list.
 
     """
-    # pre-load left data
-    left_df = self.get_data()
+    # pre-load left data, ImmutableResultSets will automatically be merged if the EntryGroup is 'Split dataset' or 'Composite'
+    # if self.get_data() produces an error, there is no datasource information -> do not calculate matrix for this entry
+    try:
+        left_df = self.get_data()
+        if not isinstance(left_df, DataFrame):
+            return
+    except Exception as exc:
+        #print(exc)
+        return
     
     # handle verbosity
     if verbose:
         others = tqdm(others, unit='cells')
     
-    # get a session
-    session = object_session(self)
+    # get a session, compatability to input class ImmutableResultSet
+    if type(self) == Entry:
+        session = object_session(self)
+    elif str(type(self)) == "<class 'metacatalog.util.results.ImmutableResultSet'>":
+        session = object_session(self.group)
 
     # load the metrics
     metrics_objects = session.query(models.CorrelationMetric).filter(models.CorrelationMetric.symbol.in_(metrics)).all()
@@ -141,7 +157,14 @@ def index_correlation_matrix(self: Entry, others: list, metrics = ['pearson'], i
     for left_col in left_df.columns:
         for other in others:
             # load right data here instead of in every for loop (performance)
-            right_df = other.get_data(start=kwargs.get('start'), end=kwargs.get('end'))
+            # if other.get_data() produces an error, there is no datasource information -> do not calculate matrix for this entry
+            try:
+                right_df = other.get_data(start=kwargs.get('start'), end=kwargs.get('end'))
+                if not isinstance(right_df, DataFrame):
+                    return
+            except Exception as exc:
+                #print(exc)
+                continue
 
             # loop over columns in right_df and left_df
             for right_col in right_df.columns:

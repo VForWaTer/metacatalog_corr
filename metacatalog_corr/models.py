@@ -117,8 +117,8 @@ class CorrelationMatrix(Base):
     def create(
             cls,
             session: sa.orm.Session,
-            entry: Union[int, str, 'Entry'],
-            other: Union[int, str, 'Entry'],
+            entry: Union[int, str, 'Entry', 'ImmutableResultSet'],
+            other: Union[int, str, 'Entry', 'ImmutableResultSet'],
             metric: Union[int, str, CorrelationMetric],
             left,
             right,
@@ -141,8 +141,10 @@ class CorrelationMatrix(Base):
             session to the database
         entry : metacatalog.models.Entry
             Metadata entry to calculate
+            Can also be of type ImmutableResultSet.
         other : metacatalog.models.Entry
-            Other Metadata entry to correlate
+            Other Metadata entry to correlate.
+            Can also be of type ImmutableResultSet.
         metric : CorrelationMetric
             The id (int), symbol (str) or CorrelationMetric itself
             to be used.
@@ -187,6 +189,7 @@ class CorrelationMatrix(Base):
         # We need to import them here, otherwise there is a circular import if
         # metacatalog tries to load this extension, that in turn tries to load metacatalog 
         from metacatalog.models import Entry
+        from metacatalog.util.results import ImmutableResultSet
         from metacatalog import api
 
         # check if entry is an int (id), str (uuid) or Entry
@@ -194,16 +197,16 @@ class CorrelationMatrix(Base):
             entry = api.find_entry(session, id=entry)[0]
         elif isinstance(entry, str):
             entry = api.find_entry(session, uuid=entry)[0]
-        if not isinstance(entry, Entry):
-            raise AttributeError('entry is not a valid metacatalog.Entry.')
+        if not isinstance(entry, (Entry, ImmutableResultSet)):
+            raise AttributeError('entry is not a valid metacatalog.Entry or metacatalog.util.results.ImmutableResultSet.')
         
         # check if other is an int (id), str (uuid) or Entry
         if isinstance(other, int):
             other = api.find_entry(session, id=other)[0]
         elif isinstance(entry, str):
             other = api.find_entry(session, uuid=other)[0]
-        if not isinstance(other, Entry):
-            raise AttributeError('other is not a valid metacatalog.Entry.')
+        if not isinstance(other, (Entry, ImmutableResultSet)):
+            raise AttributeError('other is not a valid metacatalog.Entry or metacatalog.util.results.ImmutableResultSet.')
 
         # get the metric
         if isinstance(metric, int):
@@ -214,8 +217,16 @@ class CorrelationMatrix(Base):
             raise AttributeError('metric is not a valid CorrelationMetric')
 
         # load existing matrix if any
-        query = session.query(CorrelationMatrix).filter(CorrelationMatrix.left_id==entry.id)
-        query = query.filter(CorrelationMatrix.right_id==other.id)
+        # always use the id of the first member (Entry) of an ImmutableResultSet as left_id / right_id
+        if str(type(entry)) == "<class 'metacatalog.util.results.ImmutableResultSet'>":
+            query = session.query(CorrelationMatrix).filter(CorrelationMatrix.left_id==entry._members[0].id)
+        else:
+            query = session.query(CorrelationMatrix).filter(CorrelationMatrix.left_id==entry.id)
+
+        if str(type(other)) == "<class 'metacatalog.util.results.ImmutableResultSet'>":
+            query = query.filter(CorrelationMatrix.right_id==other._members[0].id)
+        else:
+            query = query.filter(CorrelationMatrix.right_id==other.id)
         query = query.filter(CorrelationMatrix.metric_id==metric.id)
         
         if identifier is not None:
@@ -265,6 +276,15 @@ class CorrelationMatrix(Base):
                 left = left[nan_indices]
                 right = right[nan_indices]
 
+            # manually break while loop
+            break
+
+        if (len(left) == 0 or len(right) == 0):
+            matrix.add_warning(category='NoDataWarning', 
+                               message='No data available for left and/or right entry due to datasource, harmonization or nan remove.',
+                               session=session, commit=False)
+            corr = np.nan
+        else:
             # calculate, if warnings / errors occur, store them in table correlation warnings
             with warnings.catch_warnings(record=True) as w:
                 try:
@@ -274,26 +294,26 @@ class CorrelationMatrix(Base):
                     corr = np.nan
 
             if w:
-                # use a list of unique warnings (set) (when messages occur twice in one calculation, they are also added twice in table correlation_warnings -> yields an integrity error later)
+                # use a list of unique warnings (set) (when messages occur twice in one calculation, they are also added twice in table correlation_warnings -> integrity error)
                 warn_list = []
                 for warn in w: warn_list.append((str(warn.category.__name__), str(warn.message)))
 
                 for warn in set(warn_list):
                     matrix.add_warning(category=warn[0], message=warn[1], session=session, commit=False)
 
-            # manually break while loop
-            break
-
-        if (len(left) == 0 or len(right) == 0):
-            matrix.add_warning(category='NoDataWarning', 
-                               message='No data available for left and/or right entry due to datasource, harmonization or nan remove.',
-                               session=session, commit=False)
-            corr = np.nan
-
         # build the matrix value
         matrix.metric_id=metric.id
-        matrix.left_id=entry.id
-        matrix.right_id=other.id
+
+        if str(type(entry)) == "<class 'metacatalog.util.results.ImmutableResultSet'>":
+            matrix.left_id=entry._members[0].id
+        else:
+            matrix.left_id=entry.id
+
+        if str(type(other)) == "<class 'metacatalog.util.results.ImmutableResultSet'>":
+            matrix.right_id=other._members[0].id
+        else:
+            matrix.right_id=other.id
+
         matrix.value=corr
         matrix.identifier=identifier
 
