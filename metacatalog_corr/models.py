@@ -1,6 +1,9 @@
 import importlib
 from datetime import datetime as dt
 from typing import Union
+from unicodedata import category
+import warnings
+from warnings import WarningMessage
 
 import sqlalchemy as sa
 from sqlalchemy.ext.declarative import declarative_base
@@ -8,6 +11,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.mutable import MutableDict
 import numpy as np
+from sqlalchemy.orm.session import object_session
 
 
 # create a new declarative base only for this extension
@@ -62,6 +66,32 @@ class CorrelationMetric(Base):
         return self.func(left, right, **self.function_args)
 
 
+class CorrelationWarning(Base):
+    """
+    Warning occured during the calculation of a correlation metric.
+    This warning has to be connected to one or many CorrelationMatrix 
+    records.
+
+    """
+    __tablename__ = 'correlation_warnings'
+
+    # columns
+    id = sa.Column(sa.Integer, primary_key=True)
+    category = sa.Column(sa.String(30), nullable=False)
+    message = sa.Column(sa.String, nullable=False)
+    backtrace = sa.Column(sa.String, nullable=True)
+
+    # relations
+    matrix_values = relationship('CorrelationMatrix', secondary='correlation_nm_warning', back_populates='warnings')
+
+
+class CorrelationWarningAssociation(Base):
+    __tablename__ = 'correlation_nm_warning'
+
+    matrix_id = sa.Column(sa.BigInteger, sa.ForeignKey('correlation_matrix.id'), primary_key=True)
+    warning_id = sa.Column(sa.Integer, sa.ForeignKey('correlation_warnings.id'), primary_key=True)
+
+
 class CorrelationMatrix(Base):
     """
     Correlation matrix
@@ -72,7 +102,7 @@ class CorrelationMatrix(Base):
     id = sa.Column(sa.BigInteger, primary_key=True)
     metric_id = sa.Column(sa.Integer, sa.ForeignKey('correlation_metrics.id'), nullable=False)
     value = sa.Column(sa.Numeric, nullable=False)
-    identifier = sa.Column(sa.String(30), nullable=True)
+    identifier = sa.Column(sa.String(200), nullable=True)
     left_id = sa.Column(sa.Integer, nullable=False)
     right_id = sa.Column(sa.Integer, nullable=False)
 
@@ -81,14 +111,17 @@ class CorrelationMatrix(Base):
 
     # relationships
     metric = relationship("CorrelationMetric")
+    warnings = relationship("CorrelationWarning", secondary='correlation_nm_warning', back_populates='matrix_values')
 
     @classmethod
     def create(
             cls,
             session: sa.orm.Session,
-            entry: Union[int, str, 'Entry'],
-            other: Union[int, str, 'Entry'],
+            entry: Union[int, str, 'Entry', 'ImmutableResultSet'],
+            other: Union[int, str, 'Entry', 'ImmutableResultSet'],
             metric: Union[int, str, CorrelationMetric],
+            left,
+            right,
             threshold=None,
             commit=False,
             start=None,
@@ -108,11 +141,17 @@ class CorrelationMatrix(Base):
             session to the database
         entry : metacatalog.models.Entry
             Metadata entry to calculate
+            Can also be of type ImmutableResultSet.
         other : metacatalog.models.Entry
-            Other Metadata entry to correlate
+            Other Metadata entry to correlate.
+            Can also be of type ImmutableResultSet.
         metric : CorrelationMetric
             The id (int), symbol (str) or CorrelationMetric itself
             to be used.
+        left : pandas.Series
+            Left data of entry.
+        right : pandas.Series
+            Right data of other.
         threshold : float
             If set, any correlate absolute value lower than threshold
             will not be stored to the database. Has no effect if
@@ -141,15 +180,6 @@ class CorrelationMatrix(Base):
             None is returned.
             Defaults to False.
         
-        Keyword Arguments
-        -----------------
-        left_df : pandas.DataFrame
-            If given, the create function will not download the data
-            from metacatalog again
-        right_df : pandas.DataFrame
-            If given, the create function will not download the data
-            from metacatalog again
-        
         Returns
         -------
         matrix_value : CorrelationMatrix
@@ -159,6 +189,7 @@ class CorrelationMatrix(Base):
         # We need to import them here, otherwise there is a circular import if
         # metacatalog tries to load this extension, that in turn tries to load metacatalog 
         from metacatalog.models import Entry
+        from metacatalog.util.results import ImmutableResultSet
         from metacatalog import api
 
         # check if entry is an int (id), str (uuid) or Entry
@@ -166,16 +197,16 @@ class CorrelationMatrix(Base):
             entry = api.find_entry(session, id=entry)[0]
         elif isinstance(entry, str):
             entry = api.find_entry(session, uuid=entry)[0]
-        if not isinstance(entry, Entry):
-            raise AttributeError('entry is not a valid metacatalog.Entry.')
+        if not isinstance(entry, (Entry, ImmutableResultSet)):
+            raise AttributeError('entry is not a valid metacatalog.Entry or metacatalog.util.results.ImmutableResultSet.')
         
         # check if other is an int (id), str (uuid) or Entry
         if isinstance(other, int):
             other = api.find_entry(session, id=other)[0]
         elif isinstance(entry, str):
             other = api.find_entry(session, uuid=other)[0]
-        if not isinstance(other, Entry):
-            raise AttributeError('other is not a valid metacatalog.Entry.')
+        if not isinstance(other, (Entry, ImmutableResultSet)):
+            raise AttributeError('other is not a valid metacatalog.Entry or metacatalog.util.results.ImmutableResultSet.')
 
         # get the metric
         if isinstance(metric, int):
@@ -186,12 +217,21 @@ class CorrelationMatrix(Base):
             raise AttributeError('metric is not a valid CorrelationMetric')
 
         # load existing matrix if any
-        query = session.query(CorrelationMatrix).filter(CorrelationMatrix.left_id==entry.id)
-        query = query.filter(CorrelationMatrix.right_id==other.id)
+        # always use the id of the first member (Entry) of an ImmutableResultSet as left_id / right_id
+        if str(type(entry)) == "<class 'metacatalog.util.results.ImmutableResultSet'>":
+            query = session.query(CorrelationMatrix).filter(CorrelationMatrix.left_id==entry._members[0].id)
+        else:
+            query = session.query(CorrelationMatrix).filter(CorrelationMatrix.left_id==entry.id)
+
+        if str(type(other)) == "<class 'metacatalog.util.results.ImmutableResultSet'>":
+            query = query.filter(CorrelationMatrix.right_id==other._members[0].id)
+        else:
+            query = query.filter(CorrelationMatrix.right_id==other.id)
         query = query.filter(CorrelationMatrix.metric_id==metric.id)
         
         if identifier is not None:
-            query = query.filter(CorrelationMatrix.identifer == identifier)
+            query = query.filter(CorrelationMatrix.identifier == identifier)
+        
         matrix = query.first()
         
         # handle omit
@@ -199,60 +239,84 @@ class CorrelationMatrix(Base):
             if matrix is not None and matrix.value is not None:
                 return matrix
 
-        # create a instance if needed
+        # create an instance if needed
         if matrix is None:
             matrix = CorrelationMatrix() 
-        
-        # get the left data
-        if 'left_df' in kwargs:
-            left_df = kwargs['left_df']
-            left = left_df.to_numpy()
+
+        # only proceed with the calculation while data is still available during data preprocessing:
+        while (len(left) != 0 and len(right) != 0):
+            # handle overlap
+            # TODO - maybe we can use the TemporalExtent here to not download 
+            # non-overlapping data.
+            if force_overlap:
+                max_start = max(right.index.min(), left.index.min())
+                min_end = min(left.index.max(), right.index.max())
+                left = left.loc[max_start:min_end, ].copy()
+                right = right.loc[max_start:min_end, ].copy()  
+                left = left.to_numpy()  
+                right = right.to_numpy()   
+
+            # harmonize left and right data by matching indices
+            if harmonize:
+                harmonized_index = right[right.index.isin(left.index)].index
+                left = left.loc[harmonized_index]
+                right = right.loc[harmonized_index]
+                if len(harmonized_index) == 0:
+                    matrix.add_warning(category='HarmonizationWarning', 
+                                       message='Indices of left and right data have no matches, harmonization not possible.',
+                                       session=session, commit=False)
+
+            # pandas.Series to np.ndarray
+            left = left.to_numpy()
+            right = right.to_numpy()
+
+            # remove NaN values from both left and right (if any are included)
+            if np.isnan(left).any() or np.isnan(right).any():
+                nan_indices = np.logical_not(np.logical_or(np.isnan(left), np.isnan(right)))
+                left = left[nan_indices]
+                right = right[nan_indices]
+
+            # break while loop
+            break
+
+        if (len(left) == 0 or len(right) == 0):
+            matrix.add_warning(category='NoDataWarning', 
+                               message='No data available for left and/or right entry due to datasource, harmonization or nan remove.',
+                               session=session, commit=False)
+            corr = np.nan
         else:
-            left_df = entry.get_data(start=start, end=end)
-            left = left_df.to_numpy()
+            # calculate, if warnings / errors occur, store them in table correlation warnings
+            with warnings.catch_warnings(record=True) as w:
+                try:
+                    corr = metric.calc(left, right)
+                except Exception as e:
+                    matrix.add_warning(category=e.__class__.__name__, message=str(e), session=session, commit=False)
+                    corr = np.nan
 
-        # get the right data
-        if 'right_data' in kwargs:
-            right_df = kwargs['right_df']
-            right = right_df.to_numpy()
-        else:
-            right_df = other.get_data(start=start, end=end)
-            right = right_df.to_numpy()
+            if w:
+                # use a list of unique warnings (set) (when messages occur twice in one calculation, they are also added twice in table correlation_warnings -> integrity error)
+                warn_list = []
+                for warn in w: warn_list.append((str(warn.category.__name__), str(warn.message)))
 
-        # harmonize left and right data by matching indices
-        if harmonize:
-            harmonized_index = right_df[right_df.index.isin(left_df.index)].index
-            left = left_df.loc[harmonized_index].to_numpy()
-            right = right_df.loc[harmonized_index].to_numpy()
+                for warn in set(warn_list):
+                    matrix.add_warning(category=warn[0], message=warn[1], session=session, commit=False)
 
-        # handle overlap
-        # TODO - maybe we can use the TemporalExtent here to not download 
-        # non-overlapping data.
-        if force_overlap:
-            max_start = max(right_df.index.min(), left_df.index.min())
-            min_end = min(left_df.index.max(), right_df.index.max())
-            left = left_df.loc[max_start:min_end, ].copy()
-            right = right_df.loc[max_start:min_end, ].copy()  
-            left = left.to_numpy()  
-            right = right.to_numpy()      
-
-        # check if data is actually available:
-        if len(left) == 0 or len(right) == 0:
-            return None
-
-        # loaded data is a list of lists [[x], [y], [z]] -> unstack
-        left = np.hstack(left)
-        right = np.hstack(right)
-
-        # calculate
-        corr = metric.calc(left, right)
-        
         # build the matrix value
-        matrix.metric_id=metric.id,
-        matrix.left_id=entry.id,
-        matrix.right_id=other.id,
+        matrix.metric_id=metric.id
+
+        # ImmutableResultSet: use id of first member as left_id
+        if str(type(entry)) == "<class 'metacatalog.util.results.ImmutableResultSet'>":
+            matrix.left_id=entry._members[0].id
+        else:
+            matrix.left_id=entry.id
+        # ImmutableResultSet: use id of first member as right_id
+        if str(type(other)) == "<class 'metacatalog.util.results.ImmutableResultSet'>":
+            matrix.right_id=other._members[0].id
+        else:
+            matrix.right_id=other.id
+
         matrix.value=corr
-        matrix.identifier = identifier
+        matrix.identifier=identifier
 
         if commit:
             # if smaller than threshold, return anyway
@@ -270,6 +334,28 @@ class CorrelationMatrix(Base):
         # return
         return matrix
 
+    def add_warning(self, session, category, message, commit=False):
+        """
+        Add a new warning to this instance
+        """
+        # find or create the warning instance
+        with session.no_autoflush:
+            warn = session.query(CorrelationWarning).filter(CorrelationWarning.category==category, CorrelationWarning.message==message).first()
+        if warn is None:
+            warn = CorrelationWarning(category=category, message=message)
+        
+        # append warning
+        self.warnings.append(warn)
+
+        # commit if requested
+        if commit:
+            try:
+                session.add(self)
+                session.commit()
+            except Exception as e:
+                session.rollback()
+                raise e
+
 
 def merge_declarative_base(other: sa.MetaData):
     """
@@ -282,6 +368,8 @@ def merge_declarative_base(other: sa.MetaData):
     # add these tables to the other metadata
     CorrelationMetric.__table__.to_metadata(other)
     CorrelationMatrix.__table__.to_metadata(other)
+    CorrelationWarning.__table__.to_metadata(other)
+    CorrelationWarningAssociation.__table__.to_metadata(other)
 
     # TODO: here a relationship to Entry can be build if needed
 
