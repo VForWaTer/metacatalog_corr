@@ -276,7 +276,7 @@ class CorrelationMatrix(Base):
                 left = left[nan_indices]
                 right = right[nan_indices]
 
-            # manually break while loop
+            # break while loop
             break
 
         if (len(left) == 0 or len(right) == 0):
@@ -304,11 +304,12 @@ class CorrelationMatrix(Base):
         # build the matrix value
         matrix.metric_id=metric.id
 
+        # ImmutableResultSet: use id of first member as left_id
         if str(type(entry)) == "<class 'metacatalog.util.results.ImmutableResultSet'>":
             matrix.left_id=entry._members[0].id
         else:
             matrix.left_id=entry.id
-
+        # ImmutableResultSet: use id of first member as right_id
         if str(type(other)) == "<class 'metacatalog.util.results.ImmutableResultSet'>":
             matrix.right_id=other._members[0].id
         else:

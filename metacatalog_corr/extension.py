@@ -142,10 +142,10 @@ def index_correlation_matrix(self: Union[Entry, ImmutableResultSet], others: lis
     if verbose:
         others = tqdm(others, unit='cells')
     
-    # get a session, compatability to input class ImmutableResultSet
+    # get a session
     if type(self) == Entry:
         session = object_session(self)
-    elif str(type(self)) == "<class 'metacatalog.util.results.ImmutableResultSet'>":
+    elif type(self) == ImmutableResultSet:
         session = object_session(self.group)
 
     # load the metrics
@@ -161,7 +161,7 @@ def index_correlation_matrix(self: Union[Entry, ImmutableResultSet], others: lis
             try:
                 right_df = other.get_data(start=kwargs.get('start'), end=kwargs.get('end'))
                 if not isinstance(right_df, DataFrame):
-                    return
+                    continue
             except Exception as exc:
                 #print(exc)
                 continue
