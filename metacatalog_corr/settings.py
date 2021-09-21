@@ -24,14 +24,6 @@ DEFAULT_METRICS = [
         'function_args': {'exponent': 1}
     },
     {
-        'symbol': 'mutual_info',
-        'name': 'Mutual Information',
-        'description': 'Estimation of the mutual information; Implementation from https://polsys.github.io/ennemi/api-reference.html#:~:text=to%20discrete%20data.-,estimate_mi,-Estimate%20the%20mutual',
-        'function_name': 'mutual_information_coef',
-        'import_path': 'metacatalog_corr.metrics',
-        'function_args': {'normalize': True}
-    },
-    {
         'symbol': 'mic',
         'name': 'Maximal information coefficient',
         'description': 'Calulation of the maximal information coefficient; Implementation from https://minepy.readthedocs.io/en/latest/python.html',
@@ -102,6 +94,38 @@ DEFAULT_METRICS = [
         'function_name': 'skipped_corr_coef',
         'import_path': 'metacatalog_corr.metrics',
         'function_args': {}
+    },
+    {
+        'symbol': 'conditional_entropy',
+        'name': 'Conditional entropy',
+        'description': 'Calculation of the Conditional entropy; Implementation from https://github.com/KIT-HYD/scikit-info',
+        'function_name': 'conditional_entropy',
+        'import_path': 'metacatalog_corr.metrics',
+        'function_args': {'bins': 'auto'}
+    },
+    {
+        'symbol': 'mutual_info',
+        'name': 'Mutual Information',
+        'description': 'Calculation of the mutual information; Implementation from https://github.com/KIT-HYD/scikit-info',
+        'function_name': 'mutual_information',
+        'import_path': 'metacatalog_corr.metrics',
+        'function_args': {'bins': 'auto'}
+    },
+    {
+        'symbol': 'cross_entropy',
+        'name': 'Cross entropy',
+        'description': 'Calculation of the Cross entropy; Implementation from https://github.com/KIT-HYD/scikit-info',
+        'function_name': 'cross_entropy',
+        'import_path': 'metacatalog_corr.metrics',
+        'function_args': {'bins': 'auto'}
+    },
+    {
+        'symbol': 'kullback_leibler',
+        'name': 'Kullback Leibler',
+        'description': 'Calculation of the Kullback Leibler Divergence; Implementation from https://github.com/KIT-HYD/scikit-info',
+        'function_name': 'kullback_leibler',
+        'import_path': 'metacatalog_corr.metrics',
+        'function_args': {'bins': 'auto'}
     }
 ]
 

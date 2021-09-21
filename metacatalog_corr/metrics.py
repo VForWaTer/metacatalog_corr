@@ -5,6 +5,7 @@ import ennemi
 import minepy
 from . import hoeffdings_d
 import pingouin
+from . import sk_info_metrics as sk_info
 
 #import hyppo.independence
 
@@ -31,19 +32,6 @@ def distance_corr_coef(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
     Distance correlation for left and right array.
     """
     corr = dcor.distance_correlation(left, right, **kwargs)
-
-    return corr
-
-def mutual_information_coef(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
-    """
-    Mutual Information estimation between left and right array.
-    Argument 'normalize=True' in **kwargs normalizes result to correlation coefficient scale.
-    """
-    corr = ennemi.estimate_mi(left, right, **kwargs)[0][0]
-    
-    # MI becomes -Inf sometimes (if left == right?), which can´t be inserted into table correlation_matrix
-    if np.isinf(corr):
-        corr = np.nan
 
     return corr
 
@@ -126,12 +114,43 @@ def skipped_corr_coef(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
 
     return corr
 
-#def heller_heller_gorfine(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
-#    """
-#    Calculate Heller-Heller-Gorfine test statistic for left and right array.
-#    """
-#    hhg = independence.HHG()
-#    corr, _ = hhg.test(left,right)
-#
-#    return corr
+def conditional_entropy(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
+    """
+    Calculation of the Conditional entropy for left and right array.
+    """
+    bins = np.histogram_bin_edges([left, right], **kwargs)
+    corr = sk_info.conditional_entropy(left, right, bins)
 
+    return corr
+
+def mutual_information(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
+    """
+    Calculation of the Mutual information for left and right array.   
+    """
+    bins = np.histogram_bin_edges([left, right], **kwargs)
+    corr = sk_info.mutual_information(left, right, bins)
+    
+    # MI becomes -Inf sometimes (if left == right?), which can´t be inserted into table correlation_matrix
+    #if np.isinf(corr):
+    #    corr = np.nan
+
+    return corr
+
+
+def cross_entropy(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
+    """
+    Calculation of the Cross entropy for left and right array.   
+    """
+    bins = np.histogram_bin_edges([left, right], **kwargs)
+    corr = sk_info.cross_entropy(left, right, bins)
+
+    return corr
+
+def kullback_leibler(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
+    """
+    Calculation of the Kullback Leibler Divergence for left and right array.   
+    """
+    bins = np.histogram_bin_edges([left, right], **kwargs)
+    corr = sk_info.kullback_leibler(left, right, bins)
+    
+    return corr
