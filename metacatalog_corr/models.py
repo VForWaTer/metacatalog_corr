@@ -41,7 +41,7 @@ class CorrelationMetric(Base):
 
     # columns
     id = sa.Column(sa.Integer, primary_key=True)
-    symbol = sa.Column(sa.String(12), nullable=False)
+    symbol = sa.Column(sa.String(20), nullable=False)
     name = sa.Column(sa.String(500), nullable=False)
     description = sa.Column(sa.Text, nullable=True)
     function_name = sa.Column(sa.String(500), nullable=False)
