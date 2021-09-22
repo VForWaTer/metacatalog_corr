@@ -218,12 +218,12 @@ class CorrelationMatrix(Base):
 
         # load existing matrix if any
         # always use the id of the first member (Entry) of an ImmutableResultSet as left_id / right_id
-        if str(type(entry)) == "<class 'metacatalog.util.results.ImmutableResultSet'>":
+        if type(entry) == ImmutableResultSet:
             query = session.query(CorrelationMatrix).filter(CorrelationMatrix.left_id==entry._members[0].id)
         else:
             query = session.query(CorrelationMatrix).filter(CorrelationMatrix.left_id==entry.id)
 
-        if str(type(other)) == "<class 'metacatalog.util.results.ImmutableResultSet'>":
+        if type(other) == ImmutableResultSet:
             query = query.filter(CorrelationMatrix.right_id==other._members[0].id)
         else:
             query = query.filter(CorrelationMatrix.right_id==other.id)
@@ -243,8 +243,8 @@ class CorrelationMatrix(Base):
         if matrix is None:
             matrix = CorrelationMatrix() 
 
-        # only proceed with the calculation while data is still available during data preprocessing:
-        while (len(left) != 0 and len(right) != 0):
+        # only proceed with the calculation if data is still available during data preprocessing:
+        if (len(left) != 0 and len(right) != 0):
             # handle overlap
             # TODO - maybe we can use the TemporalExtent here to not download 
             # non-overlapping data.
@@ -254,8 +254,9 @@ class CorrelationMatrix(Base):
                 left = left.loc[max_start:min_end, ].copy()
                 right = right.loc[max_start:min_end, ].copy()  
                 left = left.to_numpy()  
-                right = right.to_numpy()   
+                right = right.to_numpy()  
 
+        if (len(left) != 0 and len(right) != 0):
             # harmonize left and right data by matching indices
             if harmonize:
                 harmonized_index = right[right.index.isin(left.index)].index
@@ -266,18 +267,17 @@ class CorrelationMatrix(Base):
                                        message='Indices of left and right data have no matches, harmonization not possible.',
                                        session=session, commit=False)
 
+        if (len(left) != 0 and len(right) != 0):
             # pandas.Series to np.ndarray
             left = left.to_numpy()
             right = right.to_numpy()
 
+        if (len(left) != 0 and len(right) != 0):
             # remove NaN values from both left and right (if any are included)
             if np.isnan(left).any() or np.isnan(right).any():
                 nan_indices = np.logical_not(np.logical_or(np.isnan(left), np.isnan(right)))
                 left = left[nan_indices]
                 right = right[nan_indices]
-
-            # break while loop
-            break
 
         if (len(left) == 0 or len(right) == 0):
             matrix.add_warning(category='NoDataWarning', 
@@ -305,12 +305,12 @@ class CorrelationMatrix(Base):
         matrix.metric_id=metric.id
 
         # ImmutableResultSet: use id of first member as left_id
-        if str(type(entry)) == "<class 'metacatalog.util.results.ImmutableResultSet'>":
+        if type(entry) == ImmutableResultSet:
             matrix.left_id=entry._members[0].id
         else:
             matrix.left_id=entry.id
         # ImmutableResultSet: use id of first member as right_id
-        if str(type(other)) == "<class 'metacatalog.util.results.ImmutableResultSet'>":
+        if type(other) == ImmutableResultSet:
             matrix.right_id=other._members[0].id
         else:
             matrix.right_id=other.id
