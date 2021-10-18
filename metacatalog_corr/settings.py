@@ -101,7 +101,7 @@ DEFAULT_METRICS = [
         'description': 'Calculation of the Conditional entropy; Implementation from https://github.com/KIT-HYD/scikit-info',
         'function_name': 'conditional_entropy',
         'import_path': 'metacatalog_corr.metrics',
-        'function_args': {'bins': 'auto'}
+        'function_args': { 'bins': 'fd', 'normalize': True} # fd: good estimator for large datasets
     },
     {
         'symbol': 'mutual_info',
@@ -109,7 +109,7 @@ DEFAULT_METRICS = [
         'description': 'Calculation of the mutual information; Implementation from https://github.com/KIT-HYD/scikit-info',
         'function_name': 'mutual_information',
         'import_path': 'metacatalog_corr.metrics',
-        'function_args': {'bins': 'auto'}
+        'function_args': { 'bins': 'fd', 'normalize': True} # fd: good estimator for large datasets
     },
     {
         'symbol': 'cross_entropy',
@@ -117,7 +117,7 @@ DEFAULT_METRICS = [
         'description': 'Calculation of the Cross entropy; Implementation from https://github.com/KIT-HYD/scikit-info',
         'function_name': 'cross_entropy',
         'import_path': 'metacatalog_corr.metrics',
-        'function_args': {'bins': 'auto'}
+        'function_args': {'bins': 'fd'} # fd: good estimator for large datasets
     },
     {
         'symbol': 'kullback_leibler',
@@ -125,7 +125,23 @@ DEFAULT_METRICS = [
         'description': 'Calculation of the Kullback Leibler Divergence; Implementation from https://github.com/KIT-HYD/scikit-info',
         'function_name': 'kullback_leibler',
         'import_path': 'metacatalog_corr.metrics',
-        'function_args': {'bins': 'auto'}
+        'function_args': {'bins': 'fd'} # fd: good estimator for large datasets
+    },
+    {
+        'symbol': 'js_divergence',
+        'name': 'Jensen Shannon Divergence',
+        'description': 'Calculation of the Jensen Shannon Divergence; Implementation from https://github.com/KIT-HYD/scikit-info',
+        'function_name': 'jensen_shannon',
+        'import_path': 'metacatalog_corr.metrics',
+        'function_args': {'bins': 'fd', 'js_distance': False} # fd: good estimator for large datasets
+    },
+    {
+        'symbol': 'js_distance',
+        'name': 'Jensen Shannon Distance',
+        'description': 'Calculation of the Jensen Shannon Distance; Implementation from https://github.com/KIT-HYD/scikit-info',
+        'function_name': 'jensen_shannon',
+        'import_path': 'metacatalog_corr.metrics',
+        'function_args': {'bins': 'fd', 'js_distance': True} # fd: good estimator for large datasets
     }
 ]
 

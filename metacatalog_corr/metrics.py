@@ -5,7 +5,7 @@ import ennemi
 import minepy
 from . import hoeffdings_d
 import pingouin
-from . import sk_info_metrics as sk_info
+import skinfo
 
 #import hyppo.independence
 
@@ -118,8 +118,7 @@ def conditional_entropy(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
     """
     Calculation of the Conditional entropy for left and right array.
     """
-    bins = np.histogram_bin_edges([left, right], **kwargs)
-    corr = sk_info.conditional_entropy(left, right, bins)
+    corr = skinfo.conditional_entropy(left, right, **kwargs)
 
     return corr
 
@@ -127,22 +126,25 @@ def mutual_information(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
     """
     Calculation of the Mutual information for left and right array.   
     """
-    bins = np.histogram_bin_edges([left, right], **kwargs)
-    corr = sk_info.mutual_information(left, right, bins)
-    
-    # MI becomes -Inf sometimes (if left == right?), which can´t be inserted into table correlation_matrix
-    #if np.isinf(corr):
-    #    corr = np.nan
+    corr = skinfo.mutual_information(left, right, **kwargs)
+
+    return corr
+
+def jensen_shannon(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
+    """
+    Calculation of the Jensen-Shannon Divergence and Distance for left and right array.   
+    """
+    corr = skinfo.jensen_shannon(left, right, **kwargs)
 
     return corr
 
 
+# not normalized metrics:
 def cross_entropy(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
     """
     Calculation of the Cross entropy for left and right array.   
     """
-    bins = np.histogram_bin_edges([left, right], **kwargs)
-    corr = sk_info.cross_entropy(left, right, bins)
+    corr = skinfo.cross_entropy(left, right, **kwargs)
 
     return corr
 
@@ -150,7 +152,6 @@ def kullback_leibler(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
     """
     Calculation of the Kullback Leibler Divergence for left and right array.   
     """
-    bins = np.histogram_bin_edges([left, right], **kwargs)
-    corr = sk_info.kullback_leibler(left, right, bins)
-    
+    corr = skinfo.kullback_leibler(left, right, **kwargs)
+
     return corr
