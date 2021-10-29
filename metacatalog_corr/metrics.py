@@ -5,7 +5,7 @@ import ennemi
 import minepy
 from . import hoeffdings_d
 import pingouin
-import skinfo
+import skinfo.metrics as skinfo
 
 #import hyppo.independence
 
@@ -117,6 +117,9 @@ def skipped_corr_coef(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
 def conditional_entropy(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
     """
     Calculation of the Conditional entropy for left and right array.
+    Normalized conditional entropy equals 1 if and only if left and right 
+    are independent. Therefore, 1 - cond_entropy measures the dependency 
+    between left and right array and creates comparability with abs(pearson).
     """
     corr = skinfo.conditional_entropy(left, right, **kwargs)
 
@@ -132,9 +135,12 @@ def mutual_information(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
 
 def jensen_shannon(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
     """
-    Calculation of the Jensen-Shannon Divergence and Distance for left and right array.   
+    Calculation of the Jensen-Shannon Divergence and Distance for left and right array.
+    
+    JSD measures divergence / distance. Therefore, 1 - JSD measures the similarity 
+    between left and right array and creates comparability with abs(pearson).
     """
-    corr = skinfo.jensen_shannon(left, right, **kwargs)
+    corr = 1 - skinfo.jensen_shannon(left, right, **kwargs)
 
     return corr
 
