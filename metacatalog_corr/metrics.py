@@ -121,7 +121,7 @@ def conditional_entropy(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
     are independent. Therefore, 1 - cond_entropy measures the dependency 
     between left and right array and creates comparability with abs(pearson).
     """
-    corr = skinfo.conditional_entropy(left, right, **kwargs)
+    corr = 1 - skinfo.conditional_entropy(left, right, **kwargs)
 
     return corr
 
