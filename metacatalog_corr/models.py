@@ -272,6 +272,10 @@ class CorrelationMatrix(Base):
             left = left.to_numpy()
             right = right.to_numpy()
 
+            # if left or right is from a data source with more than one column, np.hstack converts a list of lists to a list / array 
+            left = np.hstack(left)
+            right = np.hstack(right)
+
         if (len(left) != 0 and len(right) != 0):
             # remove NaN values from both left and right (if any are included)
             if np.isnan(left).any() or np.isnan(right).any():
