@@ -8,7 +8,7 @@ from metacatalog.ext import MetacatalogExtensionInterface
 from metacatalog.models import Entry
 from metacatalog.util.results import ImmutableResultSet
 from tqdm import tqdm
-from pandas import DataFrame
+from pandas import DataFrame, concat
 
 from metacatalog_corr import models
 
@@ -132,6 +132,9 @@ def index_correlation_matrix(self: Union[Entry, ImmutableResultSet], others: lis
     # if self.get_data() produces an error, there is no datasource information -> do not calculate matrix for this entry
     try:
         left_df = self.get_data()
+        # merge split datasets
+        if isinstance(left_df, dict):
+            left_df = concat(left_df.values())
         if not isinstance(left_df, DataFrame):
             return
     except Exception as exc:
