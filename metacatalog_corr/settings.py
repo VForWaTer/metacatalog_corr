@@ -81,8 +81,8 @@ DEFAULT_METRICS = [
     },
     {
         'symbol': 'shepherd',
-        'name': 'Shepherd´s pie correlation',
-        'description': 'Calculation of the Shepherd´s pie correlation coefficient; Implementation from https://pingouin-stats.org/generated/pingouin.corr.html',
+        'name': 'Shepherd´s pi correlation',
+        'description': 'Calculation of the Shepherd´s pi correlation coefficient; Implementation from https://pingouin-stats.org/generated/pingouin.corr.html',
         'function_name': 'shepherds_pi_coef',
         'import_path': 'metacatalog_corr.metrics',
         'function_args': {}
