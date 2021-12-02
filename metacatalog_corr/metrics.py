@@ -123,6 +123,9 @@ def conditional_entropy(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
     """
     corr = 1 - skinfo.conditional_entropy(left, right, **kwargs)
 
+    # return 0 if the absolute value of conditional entropy is close to 0
+    if abs(corr) < 1e-4:
+        corr = 0
     return corr
 
 def mutual_information(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
@@ -131,6 +134,9 @@ def mutual_information(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
     """
     corr = skinfo.mutual_information(left, right, **kwargs)
 
+    # return 0 if the absolute value of mutual information is close to 0
+    if abs(corr) < 1e-4:
+        corr = 0
     return corr
 
 def jensen_shannon(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
