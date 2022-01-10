@@ -39,7 +39,24 @@ def maximal_information_coef(left: np.ndarray, right: np.ndarray, **kwargs) -> f
     """
     Maximal information coefficient (MIC) for left and right array.
     """
-    mine = minepy.MINE(alpha=0.6, c=15)
+    # choose alpha depending on sample size n (speeds up mic calculation), Albanese et al. 2018, Tab. 1
+    n = len(left)
+    conditions = [
+        n < 25, 
+        25 <= n < 50, 
+        50 <= n < 250, 
+        250 <= n < 500, 
+        500 <= n < 1000, 
+        1000 <= n < 2500,
+        2500 <= n < 5000,
+        5000 <= n < 10000,
+        10000 <= n < 40000,
+        n >= 40000 
+    ]
+    choices = [.85, .8, .75, .7, .65, .6, .55, .5, .45, .4]
+    alpha = np.select(conditions, choices)
+
+    mine = minepy.MINE(alpha=alpha, c=15)
     mine.compute_score(left, right)
     corr = mine.mic()
 
