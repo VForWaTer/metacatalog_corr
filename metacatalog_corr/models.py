@@ -214,6 +214,7 @@ class CorrelationMatrix(Base):
         p_value : bool
             If True, the p-value for the metric is saved to the database.
             The p-values are calculated from permutation tests.
+            Significantly increases the calculation time.
         force_overlap : bool
             If True, the correlation metric will only be calculated
             for data of overlapping indices. If there are None,
