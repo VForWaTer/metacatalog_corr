@@ -13,6 +13,8 @@ from sqlalchemy.ext.mutable import MutableDict
 import numpy as np
 from sqlalchemy.orm.session import object_session
 
+from skinfo.metrics import get_2D_bins
+
 
 # create a new declarative base only for this extension
 Base = declarative_base()
@@ -59,38 +61,31 @@ class CorrelationMetric(Base):
         func = getattr(mod, self.function_name)
         return func
     
-    def calc(self, left: np.ndarray, right: np.ndarray) -> float:
+    def calc(self, left: np.ndarray, right: np.ndarray, **kwargs) -> float:
         """
         Calculate the metric for the given data.
         """
-        return self.func(left, right, **self.function_args)
+        return self.func(left, right, **self.function_args, **kwargs)
 
-    def permutation_test(self, left: np.ndarray, right: np.ndarray, n_iter=1000, seed=None) -> float:
+    def permutation_test(self, left: np.ndarray, right: np.ndarray, n_iter=100, seed=None, **kwargs) -> float:
         """
         Calculate non-parametric permutation test for the given data
         
         Marozzi, 2004: n_iter proposals
         
-        """
+        """  
         # calculate "true" correlation value
-        true_corr = self.func(left, right, **self.function_args)
-        
+        true_corr = self.calc(left, right, **kwargs)
         # Initialize list to store permuted correlation scores
         perm_corr = []
-
-        # right array will be shuffled
-        perm_right = right
-
         # set random seed (reproducibility master thesis: 42)
         np.random.seed(seed)
-
         # Initialize permutation loop:
         for iter in range(0, n_iter):
             # Shuffle right array:
             perm_right = np.random.permutation(right)
             # Compute permuted correlations and store them in perm_corr:
-            perm_corr.append(self.func(left, perm_right, **self.function_args))
-
+            perm_corr.append(self.calc(left, perm_right, **kwargs))
         # Significance: share of perm_corr which are >= true_corr (two-sided: absolute value):
         perm_p = len(np.where(np.abs(perm_corr) >= np.abs(true_corr))[0]) / n_iter
         
@@ -99,6 +94,25 @@ class CorrelationMetric(Base):
             perm_p = 1/n_iter
 
         return perm_p
+
+    def permutation_test_jsd(self, left, right):
+        """
+        To perform a permutation test for the information-theoretic measures Jensen-Shannon divergence
+        and distance, the binned probabilites of left and right are shuffled, instead of the values 
+        themself.
+        This functions calculates the binned probabilities for the permutation test of
+        Jensen-Shannon divergence/distance.
+        """
+        # calculate bins, in case of jensen_shannon distance left and right get the same bins
+        bins = get_2D_bins(left, right, bins=self.function_args['bins'], same_bins=True)
+        # calculate unconditioned histograms
+        hist_left = np.histogram(left, bins=bins[0])[0]
+        hist_right = np.histogram(right, bins=bins[1])[0]
+        # calculate probabilities
+        p_left = (hist_left / np.sum(hist_left))
+        p_right = (hist_right / np.sum(hist_right))
+        
+        return self.permutation_test(p_left, p_right, xy_probabilities=True)
 
 
 class CorrelationWarning(Base):
@@ -349,7 +363,11 @@ class CorrelationMatrix(Base):
             # if p_value = True: calculate p-value with permutation test
             if p_value:
                 try:
-                    matrix.p_value = metric.permutation_test(left, right, n_iter=1000, seed=42) # set random seed: reproducibility (master thesis)
+                    # jensen shannon distance and divergence: calculate binned probabilities (discretization), permute right probabilities
+                    if 'js_d' in metric.symbol:
+                        matrix.p_value = metric.permutation_test_jsd(left, right, n_iter=1000, seed=42) # set random seed: reproducibility (master thesis)
+                    else:
+                        matrix.p_value = metric.permutation_test(left, right, n_iter=1000, seed=42) # set random seed: reproducibility (master thesis)
                 except Exception as e:
                     matrix.add_warning(category=f"Permutation warning, {e.__class__.__name__}", message=str(e), session=session, commit=False)
                     matrix.p_value = np.nan
