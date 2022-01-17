@@ -93,9 +93,9 @@ class CorrelationMetric(Base):
         if perm_p == 0:
             perm_p = 1/n_iter
 
-        return perm_p
+        return perm_p, perm_corr
 
-    def permutation_test_jsd(self, left, right):
+    def permutation_test_jsd(self, left, right, n_iter=100, seed=None):
         """
         To perform a permutation test for the information-theoretic measures Jensen-Shannon divergence
         and distance, the binned probabilites of left and right are shuffled, instead of the values 
@@ -112,7 +112,7 @@ class CorrelationMetric(Base):
         p_left = (hist_left / np.sum(hist_left))
         p_right = (hist_right / np.sum(hist_right))
         
-        return self.permutation_test(p_left, p_right, xy_probabilities=True)
+        return self.permutation_test(p_left, p_right, n_iter, seed, xy_probabilities=True)
 
 
 class CorrelationWarning(Base):
@@ -365,9 +365,9 @@ class CorrelationMatrix(Base):
                 try:
                     # jensen shannon distance and divergence: calculate binned probabilities (discretization), permute right probabilities
                     if 'js_d' in metric.symbol:
-                        matrix.p_value = metric.permutation_test_jsd(left, right, n_iter=1000, seed=42) # set random seed: reproducibility (master thesis)
+                        matrix.p_value, _ = metric.permutation_test_jsd(left, right, n_iter=100, seed=42) # set random seed: reproducibility (master thesis)
                     else:
-                        matrix.p_value = metric.permutation_test(left, right, n_iter=1000, seed=42) # set random seed: reproducibility (master thesis)
+                        matrix.p_value, _ = metric.permutation_test(left, right, n_iter=100, seed=42) # set random seed: reproducibility (master thesis)
                 except Exception as e:
                     matrix.add_warning(category=f"Permutation warning, {e.__class__.__name__}", message=str(e), session=session, commit=False)
                     matrix.p_value = np.nan
