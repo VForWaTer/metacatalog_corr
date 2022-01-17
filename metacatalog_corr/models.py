@@ -87,11 +87,12 @@ class CorrelationMetric(Base):
             # Compute permuted correlations and store them in perm_corr:
             perm_corr.append(self.calc(left, perm_right, **kwargs))
         # Significance: share of perm_corr which are >= true_corr (two-sided: absolute value):
-        perm_p = len(np.where(np.abs(perm_corr) >= np.abs(true_corr))[0]) / n_iter
+        # add pseudocount to avoid perm_p = 0
+        perm_p = (1 + len(np.where(np.abs(perm_corr)) >= np.abs(true_corr))[0]) / n_iter
         
         # lower bound for perm_p: 1/n_iter
-        if perm_p == 0:
-            perm_p = 1/n_iter
+        #if perm_p == 0:
+        #    perm_p = 1/n_iter
 
         return perm_p, perm_corr
 
