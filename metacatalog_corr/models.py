@@ -72,6 +72,8 @@ class CorrelationMetric(Base):
         Calculate non-parametric permutation test for the given data
         
         Marozzi, 2004: n_iter proposals
+
+        returns the upper bound of the 95% confidence interval (Opdyke, 2003)
         
         """  
         # calculate "true" correlation value
@@ -90,6 +92,8 @@ class CorrelationMetric(Base):
         # add pseudocount to avoid perm_p = 0
         perm_p = (1 + len(np.where(np.abs(perm_corr)) >= np.abs(true_corr))[0]) / n_iter
         
+        # upper bound of 95% confidence interval
+        perm_p = perm_p + 1.96 * ((perm_p * (1 - perm_p)) / n_iter)**0.5
         # lower bound for perm_p: 1/n_iter
         #if perm_p == 0:
         #    perm_p = 1/n_iter
