@@ -90,13 +90,15 @@ class CorrelationMetric(Base):
             perm_corr.append(self.calc(left, perm_right, **kwargs))
         # Significance: share of perm_corr which are >= true_corr (two-sided: absolute value):
         # add pseudocount to avoid perm_p = 0
-        perm_p = (1 + len(np.where(np.abs(perm_corr)) >= np.abs(true_corr))[0]) / n_iter
+        perm_p = ((len(np.where(np.abs(perm_corr)  >= np.abs(true_corr))[0])) + 1) / n_iter
+
+        # pseudocount: if all perm_corr >= true_corr -> perm_p > 1 -> not possible, set perm_p to 1
+        # perm_p > 1 would also result in a complex number for the upper bound of 95% confidence interval
+        if perm_p > 1:
+            perm_p = 1
         
-        # upper bound of 95% confidence interval
+        # perm_p: upper bound of 95% confidence interval
         perm_p = perm_p + 1.96 * ((perm_p * (1 - perm_p)) / n_iter)**0.5
-        # lower bound for perm_p: 1/n_iter
-        #if perm_p == 0:
-        #    perm_p = 1/n_iter
 
         return perm_p, perm_corr
 
