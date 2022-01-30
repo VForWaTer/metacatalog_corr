@@ -13,6 +13,8 @@ from sqlalchemy.ext.mutable import MutableDict
 import numpy as np
 from sqlalchemy.orm.session import object_session
 
+from skinfo.metrics import get_2D_bins
+
 
 # create a new declarative base only for this extension
 Base = declarative_base()
@@ -53,17 +55,71 @@ class CorrelationMetric(Base):
     @property
     def func(self):
         """
-        Load the actual function and return
+        Load the actual function and return.
         """
         mod = importlib.import_module(self.import_path)
         func = getattr(mod, self.function_name)
         return func
     
-    def calc(self, left: np.ndarray, right: np.ndarray) -> float:
+    def calc(self, left: np.ndarray, right: np.ndarray, **kwargs) -> float:
         """
-        Calculate the metric for the given data
+        Calculate the metric for the given data.
         """
-        return self.func(left, right, **self.function_args)
+        return self.func(left, right, **self.function_args, **kwargs)
+
+    def permutation_test(self, left: np.ndarray, right: np.ndarray, n_iter=100, seed=None, **kwargs) -> float:
+        """
+        Calculate non-parametric permutation test for the given data
+        
+        Marozzi, 2004: n_iter proposals
+
+        returns the upper bound of the 95% confidence interval (Opdyke, 2003)
+        
+        """  
+        # calculate "true" correlation value
+        true_corr = self.calc(left, right, **kwargs)
+        # Initialize list to store permuted correlation scores
+        perm_corr = []
+        # set random seed (reproducibility master thesis: 42)
+        np.random.seed(seed)
+        # Initialize permutation loop:
+        for iter in range(0, n_iter):
+            # Shuffle right array:
+            perm_right = np.random.permutation(right)
+            # Compute permuted correlations and store them in perm_corr:
+            perm_corr.append(self.calc(left, perm_right, **kwargs))
+        # Significance: share of perm_corr which are >= true_corr (two-sided: absolute value):
+        # add pseudocount to avoid perm_p = 0
+        perm_p = ((len(np.where(np.abs(perm_corr)  >= np.abs(true_corr))[0])) + 1) / n_iter
+
+        # pseudocount: if all perm_corr >= true_corr -> perm_p > 1 -> not possible, set perm_p to 1
+        # perm_p > 1 would also result in a complex number for the upper bound of 95% confidence interval
+        if perm_p > 1:
+            perm_p = 1
+        
+        # perm_p: upper bound of 95% confidence interval
+        perm_p = perm_p + 1.96 * ((perm_p * (1 - perm_p)) / n_iter)**0.5
+
+        return perm_p, perm_corr
+
+    def permutation_test_jsd(self, left, right, n_iter=100, seed=None):
+        """
+        To perform a permutation test for the information-theoretic measures Jensen-Shannon divergence
+        and distance, the binned probabilites of left and right are shuffled, instead of the values 
+        themself.
+        This functions calculates the binned probabilities for the permutation test of
+        Jensen-Shannon divergence/distance.
+        """
+        # calculate bins, in case of jensen_shannon distance left and right get the same bins
+        bins = get_2D_bins(left, right, bins=self.function_args['bins'], same_bins=True)
+        # calculate unconditioned histograms
+        hist_left = np.histogram(left, bins=bins[0])[0]
+        hist_right = np.histogram(right, bins=bins[1])[0]
+        # calculate probabilities
+        p_left = (hist_left / np.sum(hist_left))
+        p_right = (hist_right / np.sum(hist_right))
+        
+        return self.permutation_test(p_left, p_right, n_iter, seed, xy_probabilities=True)
 
 
 class CorrelationWarning(Base):
@@ -102,6 +158,7 @@ class CorrelationMatrix(Base):
     id = sa.Column(sa.BigInteger, primary_key=True)
     metric_id = sa.Column(sa.Integer, sa.ForeignKey('correlation_metrics.id'), nullable=False)
     value = sa.Column(sa.Numeric, nullable=False)
+    p_value = sa.Column(sa.Numeric, nullable=True)
     identifier = sa.Column(sa.String(200), nullable=True)
     left_id = sa.Column(sa.Integer, nullable=False)
     right_id = sa.Column(sa.Integer, nullable=False)
@@ -129,6 +186,7 @@ class CorrelationMatrix(Base):
             identifier=None,
             if_exists='omit',
             harmonize=True,
+            p_value=True,
             force_overlap=False,
             **kwargs
         ):
@@ -174,6 +232,10 @@ class CorrelationMatrix(Base):
             indices are used for the calculation of metrics. 
             This way, the length of left and right also match.
             Defaults to True.
+        p_value : bool
+            If True, the p-value for the metric is saved to the database.
+            The p-values are calculated from permutation tests.
+            Significantly increases the calculation time.
         force_overlap : bool
             If True, the correlation metric will only be calculated
             for data of overlapping indices. If there are None,
@@ -304,6 +366,20 @@ class CorrelationMatrix(Base):
 
                 for warn in set(warn_list):
                     matrix.add_warning(category=warn[0], message=warn[1], session=session, commit=False)
+
+            # if p_value = True: calculate p-value with permutation test
+            if p_value:
+                try:
+                    # jensen shannon distance and divergence: calculate binned probabilities (discretization), permute right probabilities
+                    if 'js_d' in metric.symbol:
+                        matrix.p_value, _ = metric.permutation_test_jsd(left, right, n_iter=100, seed=42) # set random seed: reproducibility (master thesis)
+                    else:
+                        matrix.p_value, _ = metric.permutation_test(left, right, n_iter=100, seed=42) # set random seed: reproducibility (master thesis)
+                except Exception as e:
+                    matrix.add_warning(category=f"Permutation warning, {e.__class__.__name__}", message=str(e), session=session, commit=False)
+                    matrix.p_value = np.nan
+            else:
+                matrix.p_value=np.nan
 
         # build the matrix value
         matrix.metric_id=metric.id
