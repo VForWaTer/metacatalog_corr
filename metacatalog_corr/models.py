@@ -107,9 +107,13 @@ class CorrelationMetric(Base):
         To perform a permutation test for the information-theoretic measures Jensen-Shannon divergence
         and distance, the binned probabilites of left and right are shuffled, instead of the values 
         themself.
-        This functions calculates the binned probabilities for the permutation test of
-        Jensen-Shannon divergence/distance.
+        This function standardizes left and right and calculates the binned probabilities for the 
+        permutation test of Jensen-Shannon divergence/distance.
         """
+        # standardize (normally done in skinfo.jensen_shannon() when left and right are not probabilities)
+        left = (left - left.mean()) / left.std()
+        right = (right - right.mean()) / right.std()
+
         # calculate bins, in case of jensen_shannon distance left and right get the same bins
         bins = get_2D_bins(left, right, bins=self.function_args['bins'], same_bins=True)
         # calculate unconditioned histograms
