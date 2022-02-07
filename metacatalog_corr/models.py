@@ -5,6 +5,11 @@ from unicodedata import category
 import warnings
 from warnings import WarningMessage
 
+# imports for exit decorator (stop calculation after s seconds)
+import threading 
+import _thread as thread
+import sys
+
 import sqlalchemy as sa
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
@@ -18,6 +23,40 @@ from skinfo.metrics import get_2D_bins
 
 # create a new declarative base only for this extension
 Base = declarative_base()
+
+# for threading timer decorator
+def cdquit(fn_name):
+    # print to stderr, unbuffered in Python 2.
+    print('{0} took too long'.format(fn_name), file=sys.stderr)
+    sys.stderr.flush() # Python 3 stderr is likely buffered.
+    thread.interrupt_main() # raises KeyboardInterrupt
+
+# threading timer decorator 
+def exit_after(s):
+    '''
+    Use as decorator to exit process if function takes longer than s seconds.
+    Notice: exit calc() can take much longer than s seconds if the thread is
+    really stuck but exit should still happen.
+    This is not best practice, as computation time is highly system dependent
+    and the bugs in computation are not solved through this. Nevertheless as 
+    third-party packages are used for the computation of most metrics, bug
+    fixing these metrics cannot be part of metacatalog_corr. TimeoutErrors
+    are saved as KeyboardInterrupt to table correlation_warnings and can be 
+    considered when comparing computational stability of metric calculations.
+
+    Implementation from: https://gist.github.com/aaronchall/6331661fe0185c30a0b4
+    '''
+    def outer(fn):
+        def inner(*args, **kwargs):
+            timer = threading.Timer(s, cdquit, args=[fn.__name__])
+            timer.start()
+            try:
+                result = fn(*args, **kwargs)
+            finally:
+                timer.cancel()
+            return result
+        return inner
+    return outer
 
 
 class CorrelationMetric(Base):
@@ -61,6 +100,7 @@ class CorrelationMetric(Base):
         func = getattr(mod, self.function_name)
         return func
     
+    @exit_after(900) # exit calculation after 15 minutes
     def calc(self, left: np.ndarray, right: np.ndarray, **kwargs) -> float:
         """
         Calculate the metric for the given data.
@@ -355,9 +395,33 @@ class CorrelationMatrix(Base):
             with warnings.catch_warnings(record=True) as w:
                 try:
                     corr = metric.calc(left, right)
+                    calc_error = False
                 except Exception as e:
                     matrix.add_warning(category=e.__class__.__name__, message=str(e), session=session, commit=False)
                     corr = np.nan
+                    # do not try to perform permutation test if calc produced an error in the first place
+                    calc_error = True 
+                except KeyboardInterrupt:
+                    matrix.add_warning(category='InterruptError', 
+                        message=f"{metric.symbol} calculation took longer than 15 minutes, skip metric.",
+                        session=session, commit=False)
+                    corr = np.nan
+                    # do not try to perform permutation test if calc was interrupted
+                    calc_error = True 
+
+                # if p_value = True: calculate p-value with permutation test if matrix.calc did not result in an Exception
+                if p_value and not calc_error:
+                    try:
+                        # jensen shannon distance and divergence: calculate binned probabilities (discretization), permute right probabilities
+                        if 'js_d' in metric.symbol:
+                            matrix.p_value, _ = metric.permutation_test_jsd(left, right, n_iter=100, seed=42) # set random seed: reproducibility (master thesis)
+                        else:
+                            matrix.p_value, _ = metric.permutation_test(left, right, n_iter=100, seed=42) # set random seed: reproducibility (master thesis)
+                    except Exception as e:
+                        matrix.add_warning(category=f"Permutation warning, {e.__class__.__name__}", message=str(e), session=session, commit=False)
+                        matrix.p_value = np.nan
+                else:
+                    matrix.p_value=np.nan
 
             if w:
                 # use a list of unique warnings (set) (when messages occur twice in one calculation, they are also added twice in table correlation_warnings -> integrity error)
@@ -366,20 +430,6 @@ class CorrelationMatrix(Base):
 
                 for warn in set(warn_list):
                     matrix.add_warning(category=warn[0], message=warn[1], session=session, commit=False)
-
-            # if p_value = True: calculate p-value with permutation test
-            if p_value:
-                try:
-                    # jensen shannon distance and divergence: calculate binned probabilities (discretization), permute right probabilities
-                    if 'js_d' in metric.symbol:
-                        matrix.p_value, _ = metric.permutation_test_jsd(left, right, n_iter=100, seed=42) # set random seed: reproducibility (master thesis)
-                    else:
-                        matrix.p_value, _ = metric.permutation_test(left, right, n_iter=100, seed=42) # set random seed: reproducibility (master thesis)
-                except Exception as e:
-                    matrix.add_warning(category=f"Permutation warning, {e.__class__.__name__}", message=str(e), session=session, commit=False)
-                    matrix.p_value = np.nan
-            else:
-                matrix.p_value=np.nan
 
         # build the matrix value
         matrix.metric_id=metric.id
