@@ -133,7 +133,7 @@ DEFAULT_METRICS = [
         'description': 'Calculation of the Jensen Shannon Divergence; Implementation from https://github.com/KIT-HYD/scikit-info',
         'function_name': 'jensen_shannon',
         'import_path': 'metacatalog_corr.metrics',
-        'function_args': {'bins': 'fd', 'calc_distance': False} # fd: good estimator for large datasets
+        'function_args': {'bins': 'fd', 'calc_distance': False, 'standardize': True} # fd: good estimator for large datasets, standardize: put left and right on same scale
     },
     {
         'symbol': 'js_distance',
@@ -141,7 +141,7 @@ DEFAULT_METRICS = [
         'description': 'Calculation of the Jensen Shannon Distance; Implementation from https://github.com/KIT-HYD/scikit-info',
         'function_name': 'jensen_shannon',
         'import_path': 'metacatalog_corr.metrics',
-        'function_args': {'bins': 'fd', 'calc_distance': True} # fd: good estimator for large datasets
+        'function_args': {'bins': 'fd', 'calc_distance': True, 'standardize': True} # fd: good estimator for large datasets, standardize: put left and right on same scale
     }
 ]
 
