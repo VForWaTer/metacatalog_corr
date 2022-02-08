@@ -362,6 +362,20 @@ class CorrelationMatrix(Base):
                 except Exception as e:
                     matrix.add_warning(category=e.__class__.__name__, message=str(e), session=session, commit=False)
                     corr = np.nan
+                
+                # if p_value = True: calculate p-value with permutation test
+                if p_value:
+                    try:
+                        # jensen shannon distance and divergence: calculate binned probabilities (discretization), permute right probabilities
+                        if 'js_d' in metric.symbol:
+                            matrix.p_value, _ = metric.permutation_test_jsd(left, right, n_iter=100, seed=42) # set random seed: reproducibility (master thesis)
+                        else:
+                            matrix.p_value, _ = metric.permutation_test(left, right, n_iter=100, seed=42) # set random seed: reproducibility (master thesis)
+                    except Exception as e:
+                        matrix.add_warning(category=f"Permutation warning, {e.__class__.__name__}", message=str(e), session=session, commit=False)
+                        matrix.p_value = np.nan
+                else:
+                    matrix.p_value=np.nan
 
             if w:
                 # use a list of unique warnings (set) (when messages occur twice in one calculation, they are also added twice in table correlation_warnings -> integrity error)
@@ -371,19 +385,6 @@ class CorrelationMatrix(Base):
                 for warn in set(warn_list):
                     matrix.add_warning(category=warn[0], message=warn[1], session=session, commit=False)
 
-            # if p_value = True: calculate p-value with permutation test
-            if p_value:
-                try:
-                    # jensen shannon distance and divergence: calculate binned probabilities (discretization), permute right probabilities
-                    if 'js_d' in metric.symbol:
-                        matrix.p_value, _ = metric.permutation_test_jsd(left, right, n_iter=100, seed=42) # set random seed: reproducibility (master thesis)
-                    else:
-                        matrix.p_value, _ = metric.permutation_test(left, right, n_iter=100, seed=42) # set random seed: reproducibility (master thesis)
-                except Exception as e:
-                    matrix.add_warning(category=f"Permutation warning, {e.__class__.__name__}", message=str(e), session=session, commit=False)
-                    matrix.p_value = np.nan
-            else:
-                matrix.p_value=np.nan
 
         # build the matrix value
         matrix.metric_id=metric.id
