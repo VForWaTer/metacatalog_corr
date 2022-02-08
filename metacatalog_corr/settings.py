@@ -142,6 +142,7 @@ DEFAULT_METRICS = [
         'function_name': 'jensen_shannon',
         'import_path': 'metacatalog_corr.metrics',
         'function_args': {'bins': 'fd', 'calc_distance': True, 'standardize': True} # fd: good estimator for large datasets, standardize: put left and right on same scale
+
     }
 ]
 
