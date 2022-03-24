@@ -1,9 +1,7 @@
 import numpy as np
 from scipy import stats
 import dcor
-import ennemi
 import minepy
-from . import hoeffdings_d
 import pingouin
 import skinfo.metrics as skinfo
 
@@ -87,14 +85,6 @@ def somers_d_coef(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
 
     return corr
 
-def hoeffdings_d_coef(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
-    """
-    Calculation of Hoeffding´s D for left and right array.
-    """
-    corr = hoeffdings_d.hoeffding(left, right)
-
-    return corr
-
 def biweight_midcorr_coef(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
     """
     Calculation of biweight mid correlation for left and right array.
@@ -115,7 +105,7 @@ def percentage_bend_coef(left: np.ndarray, right: np.ndarray, **kwargs) -> float
 
 def shepherds_pi_coef(left: np.ndarray, right: np.ndarray, **kwargs) -> float:
     """
-    Calculation of Shepherd´s pie correlation coefficient for left and right array.
+    Calculation of Shepherd's pie correlation coefficient for left and right array.
     """
     corr = pingouin.corr(left, right, method='shepherd')
     corr = float(corr.r)
